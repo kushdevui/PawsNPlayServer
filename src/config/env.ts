@@ -3,6 +3,10 @@ import { z } from 'zod';
 
 const LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const;
 
+// A duration with a unit, e.g. 900s, 15m, 12h, 7d. Units are required: jsonwebtoken reads "900" as 900 ms.
+const TTL_PATTERN = /^\d+(s|m|h|d|w|y)$/;
+const TTL_MESSAGE = 'must be a duration with a unit, like 15m, 12h or 7d';
+
 const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -12,8 +16,8 @@ const envSchema = z
       .regex(/^mongodb(\+srv)?:\/\//, 'must start with mongodb:// or mongodb+srv://'),
     JWT_ACCESS_SECRET: z.string().min(16, 'must be at least 16 characters'),
     JWT_REFRESH_SECRET: z.string().min(16, 'must be at least 16 characters'),
-    JWT_ACCESS_TTL: z.string().min(1).default('15m'),
-    JWT_REFRESH_TTL: z.string().min(1).default('7d'),
+    JWT_ACCESS_TTL: z.string().regex(TTL_PATTERN, TTL_MESSAGE).default('15m'),
+    JWT_REFRESH_TTL: z.string().regex(TTL_PATTERN, TTL_MESSAGE).default('7d'),
     // Comma-separated list, e.g. "http://localhost:8081,http://localhost:19006"
     CORS_ORIGINS: z
       .string()

@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import bcrypt from 'bcrypt';
+import { RefreshTokenModel } from '../modules/auth/refreshToken.model.js';
 import { BookingModel } from '../modules/bookings/bookings.model.js';
 import { NotificationModel } from '../modules/notifications/notifications.model.js';
 import { PetModel } from '../modules/pets/pets.model.js';
@@ -24,10 +25,23 @@ export async function loadSeedFile<T extends SeedRecord = SeedRecord>(name: Seed
 /** `id` -> `_id` so the seed ids (u_001, p_001, ...) are kept as the document ids. */
 const withMongoId = ({ id, ...rest }: SeedRecord) => ({ _id: id, ...rest });
 
+/**
+ * Seed users share one password, so each distinct password is hashed once per process
+ * (keeps repeated seeding in tests fast). The hash is still a normal bcrypt hash.
+ */
+const hashCache = new Map<string, Promise<string>>();
+const hashSeedPassword = (password: string): Promise<string> => {
+  const cached = hashCache.get(password);
+  if (cached) return cached;
+  const hash: Promise<string> = bcrypt.hash(password, BCRYPT_COST);
+  hashCache.set(password, hash);
+  return hash;
+};
+
 export type SeedCounts = Record<SeedName, number>;
 
 /**
- * Wipes the five collections and inserts the seed data. Caller must already be connected.
+ * Wipes the five collections (and all refresh tokens, so old sessions end) and inserts the seed data. Caller must already be connected.
  * DESTRUCTIVE - only for local/test databases.
  */
 export async function seedDatabase(): Promise<SeedCounts> {
@@ -42,11 +56,12 @@ export async function seedDatabase(): Promise<SeedCounts> {
   const userDocs = await Promise.all(
     users.map(async ({ password, ...user }) => ({
       ...withMongoId(user),
-      passwordHash: await bcrypt.hash(password, BCRYPT_COST),
+      passwordHash: await hashSeedPassword(password),
     })),
   );
 
   await Promise.all([
+    RefreshTokenModel.deleteMany({}),
     UserModel.deleteMany({}),
     PetModel.deleteMany({}),
     ServiceModel.deleteMany({}),
@@ -62,6 +77,7 @@ export async function seedDatabase(): Promise<SeedCounts> {
 
   // Make sure the indexes declared in the models exist (unique email, filter indexes).
   await Promise.all([
+    RefreshTokenModel.syncIndexes(),
     UserModel.syncIndexes(),
     PetModel.syncIndexes(),
     ServiceModel.syncIndexes(),

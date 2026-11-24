@@ -4,8 +4,8 @@ Node.js REST API for **PawsNPlay**, the pet care app ([PawsNPlayRender](https://
 used by **admin**, **user** (pet owner) and **staff** roles.
 
 ## Status
-Milestone 1: project skeleton, error envelope, `GET /api/v1/health`, Mongoose models and the seed script.
-Feature endpoints (auth, users, pets, services, bookings, notifications, dashboard) come next. The API contract
+Done: M1 (skeleton, error envelope, `GET /api/v1/health`, models, seed) and M2 (auth: login, register, refresh,
+logout; `GET/PATCH /me`; admin `/users`). Next: pets, services, bookings, notifications, dashboard. The API contract
 is in [`docs/api-contract.md`](docs/api-contract.md) and [`docs/endpoints.json`](docs/endpoints.json), mirrored
 from the app's mock backend.
 
@@ -26,7 +26,8 @@ Node.js 22 · TypeScript (strict, ESM) · Express 5 · MongoDB (Mongoose 8) · Z
    Never commit `.env`.
 4. **Install dependencies**: `npm install`
 5. **Load the seed data**: `npm run seed`. This wipes and refills the `users`, `pets`, `services`, `bookings` and
-   `notifications` collections in the `pawsnplay` database. It refuses to run against a non-local URI.
+   `notifications` collections in the `pawsnplay` database and clears all refresh tokens, which logs everyone out.
+   It refuses to run against a non-local URI such as Atlas; if you really mean it, run `npm run seed -- --force`.
 6. **Start the API**: `npm run dev` (starts on port 4000 and restarts when files change).
 7. **Check it works**: open <http://localhost:4000/api/v1/health>. You should see
    `{"data":{"status":"ok","db":"connected"}}`.
@@ -35,6 +36,25 @@ Node.js 22 · TypeScript (strict, ESM) · Express 5 · MongoDB (Mongoose 8) · Z
 
 Test logins (all use the password `password123`): `admin@pawsnplay.com` (admin), `priya@example.com` (user),
 `neha.staff@pawsnplay.com` (staff).
+
+## Try the API
+With the server running and the seed loaded (`jq` is optional: `brew install jq`):
+```sh
+API=http://localhost:4000/api/v1
+
+# 1. Log in as admin -> { data: { accessToken, refreshToken, user } }
+TOKEN=$(curl -s -X POST $API/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"admin@pawsnplay.com","password":"password123"}' | jq -r .data.accessToken)
+
+# 2. Who am I?
+curl -s $API/me -H "Authorization: Bearer $TOKEN" | jq
+
+# 3. List users (admin only); filters: role, status, search, page, limit
+curl -s "$API/users?role=staff&page=1&limit=20" -H "Authorization: Bearer $TOKEN" | jq
+```
+Access tokens last 15 minutes (`JWT_ACCESS_TTL`). Get a new one with
+`POST /auth/refresh` and the body `{"refreshToken":"..."}`.
 
 ## Scripts
 | Command | What it does |

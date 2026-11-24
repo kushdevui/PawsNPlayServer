@@ -16,7 +16,7 @@ export interface PetDoc {
   species: Species;
   breed: string;
   gender: PetGender;
-  /** Date only, `YYYY-MM-DD` (kept as a string, exactly like the app). */
+  /** Date only, `YYYY-MM-DD` (kept as a string, exactly like the app), or '' when unknown. */
   dateOfBirth: string;
   weightKg: number;
   vaccinated: boolean;
@@ -32,9 +32,10 @@ const petSchema = new Schema<PetDoc>(
     name: { type: String, required: true, trim: true },
     species: { type: String, enum: SPECIES, required: true },
     breed: { type: String, default: '', trim: true },
-    gender: { type: String, enum: PET_GENDERS, required: true },
-    dateOfBirth: { type: String, required: true, match: /^\d{4}-\d{2}-\d{2}$/ },
-    weightKg: { type: Number, required: true, min: 0 },
+    gender: { type: String, enum: PET_GENDERS, default: 'male' },
+    // '' when unknown (the app mock allows it).
+    dateOfBirth: { type: String, default: '', match: /^(\d{4}-\d{2}-\d{2})?$/ },
+    weightKg: { type: Number, default: 0, min: 0 },
     vaccinated: { type: Boolean, default: false },
     notes: { type: String, default: '' },
     photoUrl: { type: String, default: null },

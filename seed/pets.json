@@ -1,0 +1,72 @@
+[
+  {
+    "id": "p_001",
+    "ownerId": "u_002",
+    "name": "Bruno",
+    "species": "dog",
+    "breed": "Labrador Retriever",
+    "gender": "male",
+    "dateOfBirth": "2022-05-14",
+    "weightKg": 28.5,
+    "vaccinated": true,
+    "notes": "Loves fetch. Allergic to chicken.",
+    "photoUrl": null,
+    "createdAt": "2026-03-12T11:00:00.000Z"
+  },
+  {
+    "id": "p_002",
+    "ownerId": "u_002",
+    "name": "Misty",
+    "species": "cat",
+    "breed": "Persian",
+    "gender": "female",
+    "dateOfBirth": "2023-01-20",
+    "weightKg": 4.2,
+    "vaccinated": true,
+    "notes": "Shy with strangers.",
+    "photoUrl": null,
+    "createdAt": "2026-03-15T09:20:00.000Z"
+  },
+  {
+    "id": "p_003",
+    "ownerId": "u_003",
+    "name": "Simba",
+    "species": "dog",
+    "breed": "Golden Retriever",
+    "gender": "male",
+    "dateOfBirth": "2021-09-02",
+    "weightKg": 31.0,
+    "vaccinated": true,
+    "notes": "",
+    "photoUrl": null,
+    "createdAt": "2026-04-21T10:00:00.000Z"
+  },
+  {
+    "id": "p_004",
+    "ownerId": "u_003",
+    "name": "Coco",
+    "species": "dog",
+    "breed": "Indie",
+    "gender": "female",
+    "dateOfBirth": "2024-02-11",
+    "weightKg": 14.0,
+    "vaccinated": false,
+    "notes": "Second vaccine dose due next month.",
+    "photoUrl": null,
+    "createdAt": "2026-05-03T16:40:00.000Z"
+  },
+  {
+    "id": "p_005",
+    "ownerId": "u_006",
+    "name": "Oreo",
+    "species": "cat",
+    "breed": "Domestic Shorthair",
+    "gender": "male",
+    "dateOfBirth": "2022-11-30",
+    "weightKg": 5.1,
+    "vaccinated": true,
+    "notes": "",
+    "photoUrl": null,
+    "createdAt": "2026-06-02T12:00:00.000Z"
+  }
+]

@@ -1,0 +1,21 @@
+import { pino } from 'pino';
+import { env } from '../config/env.js';
+
+export const logger = pino({
+  level: env.LOG_LEVEL,
+  // Never write tokens or passwords to the logs.
+  redact: {
+    paths: [
+      'req.headers.authorization',
+      'req.headers.cookie',
+      '*.password',
+      '*.passwordHash',
+      '*.accessToken',
+      '*.refreshToken',
+    ],
+    censor: '[redacted]',
+  },
+  ...(env.NODE_ENV === 'development'
+    ? { transport: { target: 'pino-pretty', options: { colorize: true, translateTime: 'SYS:HH:MM:ss' } } }
+    : {}),
+});

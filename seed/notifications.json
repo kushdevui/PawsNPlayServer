@@ -1,0 +1,52 @@
+[
+  {
+    "id": "n_001",
+    "userId": "u_002",
+    "type": "booking",
+    "title": "Booking confirmed",
+    "body": "Bruno's Day Care on 25 Nov is confirmed.",
+    "read": false,
+    "data": { "bookingId": "b_001" },
+    "createdAt": "2026-11-21T09:00:00.000Z"
+  },
+  {
+    "id": "n_002",
+    "userId": "u_002",
+    "type": "promo",
+    "title": "20% off grooming",
+    "body": "Book any grooming session this week and save 20%.",
+    "read": true,
+    "data": null,
+    "createdAt": "2026-11-19T06:30:00.000Z"
+  },
+  {
+    "id": "n_003",
+    "userId": "u_003",
+    "type": "reminder",
+    "title": "Vaccination due",
+    "body": "Coco's second vaccine dose is due soon.",
+    "read": false,
+    "data": { "petId": "p_004" },
+    "createdAt": "2026-11-22T08:00:00.000Z"
+  },
+  {
+    "id": "n_004",
+    "userId": "u_004",
+    "type": "assignment",
+    "title": "New assignment",
+    "body": "You have been assigned Coco's walk on 24 Nov, 7:00 AM.",
+    "read": false,
+    "data": { "bookingId": "b_004" },
+    "createdAt": "2026-11-21T10:00:00.000Z"
+  },
+  {
+    "id": "n_005",
+    "userId": "u_001",
+    "type": "system",
+    "title": "2 bookings awaiting approval",
+    "body": "Review pending bookings in the admin panel.",
+    "read": false,
+    "data": null,
+    "createdAt": "2026-11-23T08:00:00.000Z"
+  }
+]

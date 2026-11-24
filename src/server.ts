@@ -1,7 +1,16 @@
+import { networkInterfaces } from 'node:os';
 import { API_PREFIX, createApp } from './app.js';
 import { env } from './config/env.js';
 import { connectDB, disconnectDB } from './db/connect.js';
 import { logger } from './utils/logger.js';
+
+/** IPv4 addresses of this machine on the local network (e.g. 192.168.1.104). */
+function lanAddresses(): string[] {
+  return Object.values(networkInterfaces())
+    .flat()
+    .filter((net) => net && net.family === 'IPv4' && !net.internal)
+    .map((net) => net!.address);
+}
 
 async function main(): Promise<void> {
   try {
@@ -12,12 +21,17 @@ async function main(): Promise<void> {
   }
 
   const app = createApp();
-  const server = app.listen(env.PORT, (error?: Error) => {
+  const server = app.listen(env.PORT, env.HOST, (error?: Error) => {
     if (error) {
-      logger.fatal({ err: error }, `Could not start the server on port ${env.PORT}`);
+      logger.fatal({ err: error }, `Could not start the server on ${env.HOST}:${env.PORT}`);
       process.exit(1);
     }
     logger.info(`PawsNPlay API listening on http://localhost:${env.PORT}${API_PREFIX}`);
+    if (env.HOST === '0.0.0.0') {
+      for (const ip of lanAddresses()) {
+        logger.info(`On your network (phone/app): http://${ip}:${env.PORT}${API_PREFIX}`);
+      }
+    }
   });
 
   const shutdown = (signal: string) => {

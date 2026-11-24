@@ -3,6 +3,7 @@ import type { Role } from '../modules/auth/roles.js';
 import { verifyAccessToken } from '../modules/auth/tokens.js';
 import { UserModel } from '../modules/users/users.model.js';
 import { AppError } from '../utils/AppError.js';
+import { isObjectId } from '../utils/objectId.js';
 
 /** The authenticated caller. `role` comes from the database, so role changes apply immediately. */
 export interface AuthUser {
@@ -33,12 +34,15 @@ function bearerToken(req: Request): string | null {
 export const requireAuth: RequestHandler = async (req, _res, next) => {
   const token = bearerToken(req);
   const claims = token ? verifyAccessToken(token) : null;
-  if (!claims) throw AppError.unauthorized();
+  if (!claims || !isObjectId(claims.userId)) throw AppError.unauthorized();
 
-  const user = await UserModel.findById(claims.userId, { role: 1, status: 1 }).lean();
-  if (!user || user.status !== 'active') throw AppError.unauthorized();
+  // Spec §9: load the user on every request; inactive, deleted or revoked (tokenVersion bumped) -> 401.
+  const user = await UserModel.findById(claims.userId, { role: 1, status: 1, tokenVersion: 1 }).lean();
+  if (!user || user.status !== 'active' || user.tokenVersion !== claims.tokenVersion) {
+    throw AppError.unauthorized();
+  }
 
-  req.user = { id: user._id, role: user.role };
+  req.user = { id: user._id.toHexString(), role: user.role };
   next();
 };
 

@@ -1,11 +1,10 @@
-import { Schema, model } from 'mongoose';
+import { Schema, model, type Types } from 'mongoose';
 import { baseSchemaOptions } from '../../db/toJSON.js';
-import { newId } from '../../utils/ids.js';
 import { ROLES, USER_STATUSES, type Role, type UserStatus } from '../auth/roles.js';
 
-/** Stored shape. Public shape = app `User` (passwordHash is stripped by toJSON). */
+/** Stored shape (spec §6.1). Public shape = app `User` (see users.serializer.ts). */
 export interface UserDoc {
-  _id: string;
+  _id: Types.ObjectId;
   name: string;
   email: string;
   passwordHash: string;
@@ -13,20 +12,22 @@ export interface UserDoc {
   phone: string | null;
   avatarUrl: string | null;
   status: UserStatus;
+  /** Bumped to revoke every token of the user (logout-all, deactivation). */
+  tokenVersion: number;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 const userSchema = new Schema<UserDoc>(
   {
-    _id: { type: String, default: () => newId('u') },
-    name: { type: String, required: true, trim: true },
+    name: { type: String, required: true, trim: true, minlength: 1, maxlength: 100 },
     email: { type: String, required: true, trim: true, lowercase: true, unique: true },
     passwordHash: { type: String, required: true },
     role: { type: String, enum: ROLES, required: true, default: 'user' },
     phone: { type: String, default: null },
     avatarUrl: { type: String, default: null },
     status: { type: String, enum: USER_STATUSES, required: true, default: 'active' },
-    createdAt: { type: Date, default: () => new Date() },
+    tokenVersion: { type: Number, default: 0 },
   },
   { ...baseSchemaOptions, collection: 'users' },
 );

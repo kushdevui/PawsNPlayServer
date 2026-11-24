@@ -1,16 +1,17 @@
 # PawsNPlayServer
 
-Node.js REST API for **PawsNPlay**, the pet care app ([PawsNPlayRender](https://github.com/kushdevui/PawsNPlayRender))
-used by **admin**, **user** (pet owner) and **staff** roles.
+Node.js REST API for **Paws N' Play**, a **dog boarding** facility. The mobile app
+([PawsNPlayRender](https://github.com/kushdevui/PawsNPlayRender)) uses it to manage dogs, boarding stays,
+capacity, payments and billing. Roles: **admin** (full access), **staff** (read + check-in/out) and
+**user** (customer; only auth and `/me` for now).
 
-## Status
-Every endpoint in the contract is implemented: auth, `/me`, users, pets, services, bookings, notifications and the
-admin dashboard. Not done yet: notifications are not created server-side, only the seeded ones exist. The API contract
-is in [`docs/api-contract.md`](docs/api-contract.md) and [`docs/endpoints.json`](docs/endpoints.json), mirrored
-from the app's mock backend.
+**The contract is [`docs/BACKEND_API_SPEC.md`](docs/BACKEND_API_SPEC.md)**: models, all 27 routes, error codes,
+business rules (§8) and acceptance tests (§11). [`docs/api-contract.md`](docs/api-contract.md) and
+[`docs/endpoints.json`](docs/endpoints.json) are mirrored from the app.
 
 ## Stack
-Node.js 22 · TypeScript (strict, ESM) · Express 5 · MongoDB (Mongoose 8) · Zod · JWT · Vitest + Supertest
+Node.js 22 · TypeScript (strict, ESM) · Express 5 · MongoDB (Mongoose 8) · Zod · JWT + bcrypt · Luxon
+(facility timezone) · multer (uploads) · pino · Vitest + Supertest + mongodb-memory-server
 
 ## Run locally (macOS)
 1. **Install MongoDB Community and Compass** (needs [Homebrew](https://brew.sh)):
@@ -20,104 +21,121 @@ Node.js 22 · TypeScript (strict, ESM) · Express 5 · MongoDB (Mongoose 8) · Z
    brew services start mongodb-community
    brew install --cask mongodb-compass
    ```
-   You can also download Compass from mongodb.com/products/compass.
 2. **Use Node 22**: `nvm use` (reads `.nvmrc`), or install Node 22 LTS.
-3. **Create your env file**: `cp .env.example .env`. The defaults work for local development.
-   Never commit `.env`.
+3. **Create your env file**: `cp .env.example .env`. The defaults work for local development. Never commit `.env`.
 4. **Install dependencies**: `npm install`
-5. **Load the seed data**: `npm run seed`. This wipes and refills the `users`, `pets`, `services`, `bookings` and
-   `notifications` collections in the `pawsnplay` database and clears all refresh tokens, which logs everyone out.
-   It refuses to run against a non-local URI such as Atlas; if you really mean it, run `npm run seed -- --force`.
-6. **Start the API**: `npm run dev` (starts on port 4000 and restarts when files change).
+5. **Load the seed data**: `npm run seed`, or `npm run seed:today` to move all booking and payment dates so that
+   23 Nov 2026 becomes today, which gives a lively dashboard.
+   - The seed drops `users`, `dogs`, `bookings`, `settings` and `refreshTokens`, plus the old `pets`, `services` and
+     `notifications` collections, then loads `seed/*.json`. This logs everyone out.
+   - It refuses to run when `NODE_ENV=production`, and against a non-local URI (Atlas) unless you add
+     `-- --force`, e.g. `npm run seed -- --force`.
+6. **Start the API**: `npm run dev`. It listens on `HOST:PORT` (default `0.0.0.0:4000`) and logs the LAN URL for
+   the phone.
 7. **Check it works**: open <http://localhost:4000/api/v1/health>. You should see
-   `{"data":{"status":"ok","db":"connected"}}`.
+   `{"data":{"status":"ok","time":"...","db":"connected"}}`.
 8. **Browse the data**: in MongoDB Compass, connect to `mongodb://127.0.0.1:27017` and open the database
    **`pawsnplay`**.
 
-Test logins (all use the password `password123`): `admin@pawsnplay.com` (admin), `priya@example.com` (user),
-`neha.staff@pawsnplay.com` (staff).
+Seed logins (all use the password `password123`):
+
+| Email | Role |
+|---|---|
+| `kush@pawsnplay.com`, `divya@pawsnplay.com`, `shreya@pawsnplay.com` | admin |
+| `neha.staff@pawsnplay.com`, `vikram.staff@pawsnplay.com` | staff |
+| `priya@example.com` | user |
+| `ananya@example.com` | user, inactive (login fails with 403) |
+
+IDs are MongoDB ObjectIds, freshly generated on every seed. Look them up with `GET /dogs` or `GET /bookings`,
+or in Compass.
+
+## Environment
+Every variable is listed in [`.env.example`](.env.example).
+
+| Variable | Default | Notes |
+|---|---|---|
+| `PORT`, `HOST` | `4000`, `0.0.0.0` | `0.0.0.0` lets phones on the same Wi-Fi reach the API |
+| `MONGODB_URI` | - | e.g. `mongodb://127.0.0.1:27017/pawsnplay` |
+| `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` | - | long, random and different from each other |
+| `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL` | `15m`, `30d` | units are required |
+| `BCRYPT_COST` | `12` | |
+| `CORS_ORIGINS` | `*` | comma-separated list in production |
+| `UPLOAD_PROVIDER` | `local` | `local` saves to `UPLOAD_DIR` and serves the files at `/uploads`. `s3` and `cloudinary` are not implemented yet (they return 501) |
+| `UPLOAD_DIR`, `PUBLIC_BASE_URL` | `uploads`, - | `PUBLIC_BASE_URL` overrides the host used in upload URLs (set it behind a proxy) |
 
 ## Try the API
-With the server running and the seed loaded (`jq` is optional: `brew install jq`):
+With the server running and the seed loaded (`brew install jq` for the `jq` parts):
 ```sh
 API=http://localhost:4000/api/v1
-
-# 1. Log in as admin -> { data: { accessToken, refreshToken, user } }
-TOKEN=$(curl -s -X POST $API/auth/login \
-  -H 'Content-Type: application/json' \
-  -d '{"email":"admin@pawsnplay.com","password":"password123"}' | jq -r .data.accessToken)
-
-# 2. Who am I?
-curl -s $API/me -H "Authorization: Bearer $TOKEN" | jq
-
-# 3. List users (admin only); filters: role, status, search, page, limit
-curl -s "$API/users?role=staff&page=1&limit=20" -H "Authorization: Bearer $TOKEN" | jq
-```
-Access tokens last 15 minutes (`JWT_ACCESS_TTL`). Get a new one with
-`POST /auth/refresh` and the body `{"refreshToken":"..."}`.
-
-### A booking from start to finish
-```sh
 login() { curl -s -X POST $API/auth/login -H 'Content-Type: application/json' \
   -d "{\"email\":\"$1\",\"password\":\"password123\"}" | jq -r .data.accessToken; }
-ADMIN=$(login admin@pawsnplay.com); USER=$(login priya@example.com); STAFF=$(login neha.staff@pawsnplay.com)
+ADMIN=$(login kush@pawsnplay.com); STAFF=$(login neha.staff@pawsnplay.com)
+H() { echo "Authorization: Bearer $1"; }
 
-# 1. Priya books a Play Session (s_003) for Bruno (p_001). startTime must be in the future.
-#    The server sets endTime, totalPrice, currency, status "pending" and staffId null.
-START=$(date -u -v+2d +%Y-%m-%dT10:00:00.000Z 2>/dev/null || date -u -d '+2 days' +%Y-%m-%dT10:00:00.000Z)
-BOOKING=$(curl -s -X POST $API/bookings -H "Authorization: Bearer $USER" -H 'Content-Type: application/json' \
-  -d "{\"petId\":\"p_001\",\"serviceId\":\"s_003\",\"startTime\":\"$START\",\"notes\":\"First visit\"}" | jq -r .data.id)
+curl -s $API/me -H "$(H $ADMIN)" | jq                                    # who am I
+curl -s "$API/dogs?search=lab" -H "$(H $STAFF)" | jq '.data[].name'      # find a dog
+curl -s $API/admin/dashboard -H "$(H $STAFF)" | jq                       # today, capacity, payments due
 
-# 2. Admin confirms it and assigns Neha (u_004)
-curl -s -X PATCH $API/bookings/$BOOKING/status -H "Authorization: Bearer $ADMIN" \
-  -H 'Content-Type: application/json' -d '{"status":"confirmed"}' | jq .data.status
-curl -s -X PATCH $API/bookings/$BOOKING/assign -H "Authorization: Bearer $ADMIN" \
-  -H 'Content-Type: application/json' -d '{"staffId":"u_004"}' | jq .data.staffId
+# Book Bruno for 10-13 Dec (10:00 -> 18:00 IST); the server computes nights and total
+DOG=$(curl -s "$API/dogs?search=bruno" -H "$(H $ADMIN)" | jq -r '.data[0].id')
+BOOKING=$(curl -s -X POST $API/bookings -H "$(H $ADMIN)" -H 'Content-Type: application/json' \
+  -d "{\"dogId\":\"$DOG\",\"checkIn\":\"2026-12-10T04:30:00.000Z\",\"checkOut\":\"2026-12-13T12:30:00.000Z\"}" \
+  | jq -r .data.id)
 
-# 3. Neha marks it completed (staff can only complete confirmed bookings assigned to them)
-curl -s -X PATCH $API/bookings/$BOOKING/status -H "Authorization: Bearer $STAFF" \
-  -H 'Content-Type: application/json' -d '{"status":"completed"}' | jq .data.status
+# Record a 50% advance, check in (staff), then look at November billing
+curl -s -X POST $API/bookings/$BOOKING/payments -H "$(H $ADMIN)" -H 'Content-Type: application/json' \
+  -d '{"amount":1800,"type":"advance","method":"upi"}' | jq '.data | {amountPaid, balanceDue, paymentStatus}'
+curl -s -X PATCH $API/bookings/$BOOKING/status -H "$(H $STAFF)" -H 'Content-Type: application/json' \
+  -d '{"status":"checked_in"}' | jq .data.status
+curl -s "$API/admin/billing?from=2026-10-31T18:30:00.000Z&to=2026-11-30T18:30:00.000Z" -H "$(H $ADMIN)" | jq
 
-# 4. The admin dashboard now counts it in bookingsByStatus.completed and revenue
-curl -s $API/admin/dashboard -H "Authorization: Bearer $ADMIN" | jq
+# Upload a vaccination card (admin), then attach the returned URL to the dog
+curl -s -X POST $API/uploads -H "$(H $ADMIN)" -F "file=@card.pdf;type=application/pdf" | jq
 ```
+Access tokens last 15 minutes. Get a new one with `POST /auth/refresh` and the body `{"refreshToken":"..."}`.
 
 ### Postman
-Import [`docs/PawsNPlay.postman_collection.json`](docs/PawsNPlay.postman_collection.json). Run one of the
-**Login as admin / user / staff** requests first. Its test script saves `accessToken` and `refreshToken` into the
-collection variables, and every other request sends `Bearer {{accessToken}}`. `baseUrl` defaults to
-`http://localhost:4000/api/v1`. The example paths use seed IDs, so run `npm run seed` first to get the expected data.
+Import [`docs/PawsNPlay.postman_collection.json`](docs/PawsNPlay.postman_collection.json) and run **Login as admin
+(Kush)** or **Login as staff (Neha)** first. The login test scripts save `accessToken` and `refreshToken`.
+- The list requests save the first dog's and booking's id into `dogId` and `bookingId`, so the detail and update
+  requests work right after a seed.
+- `baseUrl` defaults to `http://localhost:4000/api/v1`.
 
 ## Scripts
 | Command | What it does |
 |---|---|
 | `npm run dev` | Dev server with reload (`tsx watch`) |
 | `npm run build` / `npm start` | Compile to `dist/` / run the compiled server (`NODE_ENV=production`) |
-| `npm run seed` | Reset the local DB to `seed/*.json` (a copy of the app's `mock/data`) |
-| `npm test` | Vitest + Supertest against an in-memory MongoDB |
+| `npm run seed` / `npm run seed:today` | Reset the local DB to `seed/*.json`, as-is or shifted to today |
+| `npm test` | Vitest + Supertest against an in-memory MongoDB (includes the spec §11 acceptance tests) |
 | `npm run typecheck` / `npm run lint` | TypeScript and ESLint checks |
 
 The first `npm test` downloads a MongoDB binary for `mongodb-memory-server`, so it needs internet access once.
 
-## API
-- Base URL: `http://localhost:4000/api/v1`
-- Auth: `Authorization: Bearer <accessToken>`
-- Responses: `{ data }`, or `{ data, meta }` for lists, or `{ error: { code, message } }` for errors
+## Connecting the app
+In PawsNPlayRender's `.env`, set:
+- `EXPO_PUBLIC_USE_MOCKS=false`
+- `EXPO_PUBLIC_API_URL=http://<your-LAN-IP>:4000/api/v1`
 
-To use it from the app: in PawsNPlayRender's `.env`, set `EXPO_PUBLIC_USE_MOCKS=false` and
-`EXPO_PUBLIC_API_URL=http://<your-LAN-IP>:4000/api/v1`.
+On a phone, use the LAN URL that `npm run dev` prints, not `localhost`.
 
 ## Project layout
 ```
 src/
-  server.ts, app.ts, routes.ts   # entry point, express app, /api/v1 router
+  server.ts, app.ts, routes.ts   # entry point, express app (+ /uploads static), /api/v1 router
   config/env.ts                  # Zod-validated environment
-  db/                            # connect, shared toJSON options, seed logic
-  middleware/                    # error, notFound, validate
-  utils/                         # AppError, respond helpers, pagination, ids, logger
-  modules/<feature>/             # routes, controller, service, schema, model per feature
+  db/                            # connect + ping, toJSON safety net, seed logic (id mapping, --shift-to-today)
+  middleware/                    # auth (requireAuth/requireRole), validate, error, notFound, methodNotAllowed, rateLimit
+  utils/                         # AppError, respond, pagination, clock, time (Luxon facility tz), objectId, regex, logger
+  modules/
+    auth/ users/                 # login/register/refresh/logout, /me, admin user management
+    dogs/                        # dogs + embedded documents
+    bookings/                    # stays, status machine, payments; bookings.rules.ts = pure spec §8 rules
+    settings/                    # single settings document + facility lock (spec §8.2 concurrency)
+    admin/                       # dashboard, occupancy calendar, billing
+    uploads/                     # POST /uploads (multer) + storage providers
 scripts/seed.ts                  # npm run seed
-seed/                            # copy of PawsNPlayRender/mock/data/*.json
+seed/                            # copy of PawsNPlayRender/mock/data/{users,dogs,bookings,settings}.json
 tests/                           # Vitest + Supertest
 ```
 

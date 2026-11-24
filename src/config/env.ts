@@ -19,17 +19,33 @@ const envSchema = z
     JWT_ACCESS_SECRET: z.string().min(16, 'must be at least 16 characters'),
     JWT_REFRESH_SECRET: z.string().min(16, 'must be at least 16 characters'),
     JWT_ACCESS_TTL: z.string().regex(TTL_PATTERN, TTL_MESSAGE).default('15m'),
-    JWT_REFRESH_TTL: z.string().regex(TTL_PATTERN, TTL_MESSAGE).default('7d'),
-    // Comma-separated list, e.g. "http://localhost:8081,http://localhost:19006"
+    JWT_REFRESH_TTL: z.string().regex(TTL_PATTERN, TTL_MESSAGE).default('30d'),
+    // bcrypt work factor (spec: 12). Tests lower it to keep the suite fast.
+    BCRYPT_COST: z.coerce.number().int().min(4).max(15).default(12),
+    // "*" = allow any origin (dev). Otherwise a comma-separated list, e.g. "http://localhost:8081,http://localhost:19006"
     CORS_ORIGINS: z
       .string()
-      .default('')
+      .default('*')
       .transform((value) =>
         value
           .split(',')
           .map((origin) => origin.trim())
           .filter(Boolean),
       ),
+    // Uploads: local (dev, files in UPLOAD_DIR served at /uploads) | s3 | cloudinary (not implemented yet).
+    UPLOAD_PROVIDER: z.enum(['local', 's3', 'cloudinary']).default('local'),
+    UPLOAD_DIR: z.string().min(1).default('uploads'),
+    // Optional public origin used in upload URLs, e.g. https://api.example.com (default: the request's host).
+    PUBLIC_BASE_URL: z
+      .string()
+      .url('must be a URL like https://api.example.com')
+      .transform((value) => value.replace(/\/+$/, ''))
+      .optional(),
+    S3_BUCKET: z.string().optional(),
+    S3_REGION: z.string().optional(),
+    S3_ACCESS_KEY_ID: z.string().optional(),
+    S3_SECRET_ACCESS_KEY: z.string().optional(),
+    CLOUDINARY_URL: z.string().optional(),
     LOG_LEVEL: z.enum(LOG_LEVELS).optional(),
   })
   .superRefine((value, ctx) => {

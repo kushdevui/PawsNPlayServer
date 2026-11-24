@@ -20,7 +20,7 @@ function isBodyParserError(err: unknown): err is BodyParserError {
   );
 }
 
-/** Central error handler: every error leaves as `{ error: { code, message } }`. */
+/** Central error handler: every error leaves as `{ error: { code, message, details? } }`. */
 export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
   if (res.headersSent) {
     next(err);
@@ -28,7 +28,9 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
   }
 
   if (err instanceof AppError) {
-    res.status(err.status).json({ error: { code: err.code, message: err.message } });
+    res.status(err.status).json({
+      error: { code: err.code, message: err.message, ...(err.details ? { details: err.details } : {}) },
+    });
     return;
   }
 
@@ -38,7 +40,7 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
   }
 
   if (isBodyParserError(err)) {
-    // TODO(contract): confirm with app - the contract has no 400/413, so bad bodies map to 422.
+    // The spec asks for 422 (not 400) for bad input.
     const message =
       err.type === 'entity.too.large' ? 'The request is too large.' : 'The request body is not valid JSON.';
     res.status(422).json({ error: { code: 'VALIDATION_ERROR', message } });

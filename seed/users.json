@@ -1,8 +1,8 @@
 [
   {
     "id": "u_001",
-    "name": "Aarav Malhotra",
-    "email": "admin@pawsnplay.com",
+    "name": "Kush",
+    "email": "kush@pawsnplay.com",
     "password": "password123",
     "role": "admin",
     "phone": "+91 98100 00001",
@@ -64,5 +64,27 @@
     "avatarUrl": null,
     "status": "inactive",
     "createdAt": "2026-06-02T11:45:00.000Z"
+  },
+  {
+    "id": "u_007",
+    "name": "Divya",
+    "email": "divya@pawsnplay.com",
+    "password": "password123",
+    "role": "admin",
+    "phone": "+91 98100 00007",
+    "avatarUrl": null,
+    "status": "active",
+    "createdAt": "2026-01-05T09:00:00.000Z"
+  },
+  {
+    "id": "u_008",
+    "name": "Shreya",
+    "email": "shreya@pawsnplay.com",
+    "password": "password123",
+    "role": "admin",
+    "phone": "+91 98100 00008",
+    "avatarUrl": null,
+    "status": "active",
+    "createdAt": "2026-01-05T09:00:00.000Z"
   }
 ]

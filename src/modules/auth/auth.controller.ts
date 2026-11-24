@@ -5,11 +5,11 @@ import type { LoginBody, LogoutBody, RefreshBody, RegisterBody, UpdateMeBody } f
 import * as authService from './auth.service.js';
 
 export const login: RequestHandler = async (req, res) => {
-  ok(res, await authService.login(req.body as LoginBody));
+  ok(res, await authService.login(req.body as LoginBody, req.get('user-agent')));
 };
 
 export const register: RequestHandler = async (req, res) => {
-  created(res, await authService.register(req.body as RegisterBody));
+  created(res, await authService.register(req.body as RegisterBody, req.get('user-agent')));
 };
 
 export const refresh: RequestHandler = async (req, res) => {

@@ -17,6 +17,9 @@ function buildTestApp() {
   app.get('/app-error', () => {
     throw AppError.notFound('Booking');
   });
+  app.get('/rule-error', () => {
+    throw AppError.rule('CAPACITY_FULL', 'Boarding is full (15 dogs) for part of these dates.', { peak: 15, capacity: 15 });
+  });
   app.get('/async-crash', async () => {
     await Promise.resolve();
     throw new Error('database exploded: secret details');
@@ -50,6 +53,18 @@ describe('error handler', () => {
 
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ error: { code: 'NOT_FOUND', message: 'Booking not found' } });
+  });
+
+  it('includes optional details', async () => {
+    const res = await request(app).get('/rule-error');
+    expect(res.status).toBe(422);
+    expect(res.body).toEqual({
+      error: {
+        code: 'CAPACITY_FULL',
+        message: 'Boarding is full (15 dogs) for part of these dates.',
+        details: { peak: 15, capacity: 15 },
+      },
+    });
   });
 
   it('turns unexpected (async) errors into 500 INTERNAL_ERROR without leaking details', async () => {
@@ -94,15 +109,16 @@ describe('validate middleware', () => {
 });
 
 describe('pagination + list envelope', () => {
-  it('defaults to page 1, limit 20', async () => {
+  it('defaults to page 1, limit 50', async () => {
     const res = await request(app).get('/list');
 
-    expect(res.body).toEqual({ data: [{ id: 'x_1' }], meta: { total: 1, page: 1, limit: 20 } });
+    expect(res.body).toEqual({ data: [{ id: 'x_1' }], meta: { total: 1, page: 1, limit: 50 } });
   });
 
-  it('clamps like the app mocks (invalid -> defaults, limit max 100)', () => {
-    expect(parsePagination({ page: 'abc', limit: '0' })).toEqual({ page: 1, limit: 20, skip: 0 });
-    expect(parsePagination({ page: '3', limit: '500' })).toEqual({ page: 3, limit: 100, skip: 200 });
+  it('clamps like the app mocks (invalid -> defaults, limit 1..500)', () => {
+    expect(parsePagination({ page: 'abc', limit: '0' })).toEqual({ page: 1, limit: 50, skip: 0 });
+    expect(parsePagination({ page: '3', limit: '500' })).toEqual({ page: 3, limit: 500, skip: 1000 });
+    expect(parsePagination({ page: '1', limit: '9999' })).toEqual({ page: 1, limit: 500, skip: 0 });
     expect(parsePagination({ page: '-2', limit: '-5' })).toEqual({ page: 1, limit: 1, skip: 0 });
   });
 });

@@ -20,6 +20,10 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  if (env.NODE_ENV === 'production' && env.UPLOAD_PROVIDER === 'local') {
+    logger.warn('UPLOAD_PROVIDER=local in production: uploaded files are stored on this machine only.');
+  }
+
   const app = createApp();
   const server = app.listen(env.PORT, env.HOST, (error?: Error) => {
     if (error) {

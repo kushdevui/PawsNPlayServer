@@ -26,7 +26,7 @@ export const registerBody = z.object({
   password: z
     .string({ required_error: REQUIRED_MESSAGE, invalid_type_error: REQUIRED_MESSAGE })
     .min(1, REQUIRED_MESSAGE)
-    // TODO(contract): confirm with app - the mock has no password rules; 8+ characters is a server choice.
+    // Spec §7.2/§9: minimum 8 characters.
     .min(8, 'Password must be at least 8 characters.')
     .max(128, 'Password is too long.'),
   phone: z
@@ -65,8 +65,6 @@ export const updateMeBody = z.object({
   avatarUrl: z
     .string({ invalid_type_error: 'Enter a valid image link.' })
     .trim()
-    // TODO(contract): confirm with app - the mock accepts any string; the server requires a URL.
-    .url('Enter a valid image link.')
     .max(2048, 'The image link is too long.')
     .nullable()
     .optional(),

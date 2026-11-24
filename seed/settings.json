@@ -1,0 +1,9 @@
+{
+  "facilityName": "Paws N' Play Boarding",
+  "capacity": 15,
+  "defaultCheckInTime": "10:00",
+  "defaultCheckOutTime": "18:00",
+  "pricePerNight": 1200,
+  "currency": "INR",
+  "timezone": "Asia/Kolkata"
+}

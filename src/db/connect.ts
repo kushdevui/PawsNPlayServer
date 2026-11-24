@@ -16,3 +16,16 @@ export async function disconnectDB(): Promise<void> {
 }
 
 export const isDbConnected = (): boolean => mongoose.connection.readyState === 1; // 1 = connected;
+
+/** Round-trips a ping to MongoDB (health check). Resolves false instead of throwing. */
+export async function pingDb(timeoutMs = 2000): Promise<boolean> {
+  const db = mongoose.connection.db;
+  if (!isDbConnected() || !db) return false;
+  const timeout = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), timeoutMs).unref());
+  const ping = db
+    .admin()
+    .ping()
+    .then(() => true)
+    .catch(() => false);
+  return Promise.race([ping, timeout]);
+}

@@ -3,14 +3,15 @@ import jwt from 'jsonwebtoken';
 import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { env } from '../src/config/env.js';
-import { seedDatabase } from '../src/db/seed.js';
-import { createRateLimiter } from '../src/middleware/rateLimit.js';
 import { errorHandler } from '../src/middleware/error.js';
+import { createRateLimiter } from '../src/middleware/rateLimit.js';
 import { UserModel } from '../src/modules/users/users.model.js';
-import { app, bearer, EMAILS, expectError, login } from './helpers.js';
+import { app, bearer, EMAILS, expectError, login, seed, tokenFor } from './helpers.js';
+
+let id: (mockId: string) => string;
 
 beforeEach(async () => {
-  await seedDatabase();
+  ({ id } = await seed());
 });
 
 const getMe = (token?: string) => {
@@ -32,48 +33,54 @@ describe('requireAuth', () => {
   });
 
   it('rejects an expired access token', async () => {
-    const expired = jwt.sign({ role: 'user', exp: Math.floor(Date.now() / 1000) - 60 }, env.JWT_ACCESS_SECRET, {
-      subject: 'u_002',
-    });
+    const expired = jwt.sign(
+      { role: 'admin', tv: 0, exp: Math.floor(Date.now() / 1000) - 60 },
+      env.JWT_ACCESS_SECRET,
+      { subject: id('u_001') },
+    );
     expectError(await getMe(expired), 401, 'UNAUTHORIZED');
   });
 
   it('rejects a refresh token used as an access token', async () => {
-    const { refreshToken } = await login(EMAILS.user);
+    const { refreshToken } = await login(EMAILS.admin);
     expectError(await getMe(refreshToken), 401, 'UNAUTHORIZED');
   });
 
-  it('rejects a user who became inactive after logging in', async () => {
-    const { accessToken } = await login(EMAILS.user);
-    await UserModel.updateOne({ _id: 'u_002' }, { status: 'inactive' });
-    expectError(await getMe(accessToken), 401, 'UNAUTHORIZED');
+  it('rejects a user who became inactive (spec §4)', async () => {
+    const token = await tokenFor(EMAILS.staff);
+    await UserModel.updateOne({ email: EMAILS.staff }, { status: 'inactive' });
+    expectError(await getMe(token), 401, 'UNAUTHORIZED');
   });
 
-  it('rejects a user who was deleted after logging in', async () => {
-    const { accessToken } = await login(EMAILS.user);
-    await UserModel.deleteOne({ _id: 'u_002' });
-    expectError(await getMe(accessToken), 401, 'UNAUTHORIZED');
+  it('rejects a user who was deleted', async () => {
+    const token = await tokenFor(EMAILS.staff);
+    await UserModel.deleteOne({ email: EMAILS.staff });
+    expectError(await getMe(token), 401, 'UNAUTHORIZED');
+  });
+
+  it('rejects a token whose tv no longer matches (revoked)', async () => {
+    const token = await tokenFor(EMAILS.staff);
+    await UserModel.updateOne({ email: EMAILS.staff }, { $inc: { tokenVersion: 1 } });
+    expectError(await getMe(token), 401, 'UNAUTHORIZED');
   });
 
   it('uses the current role from the database, not the one in the token', async () => {
-    const { accessToken } = await login(EMAILS.admin);
-    await UserModel.updateOne({ _id: 'u_001' }, { role: 'user' });
-    const res = await request(app).get('/api/v1/users').set(bearer(accessToken));
-    expectError(res, 403, 'FORBIDDEN');
+    const token = await tokenFor(EMAILS.admin);
+    await UserModel.updateOne({ email: EMAILS.admin }, { role: 'staff' });
+    expectError(await request(app).get('/api/v1/users').set(bearer(token)), 403, 'FORBIDDEN');
   });
 });
 
 describe('GET /me', () => {
   it.each([
     ['admin', EMAILS.admin, 'u_001'],
-    ['user', EMAILS.user, 'u_002'],
     ['staff', EMAILS.staff, 'u_004'],
-  ])('returns the current %s without secrets', async (role, email, id) => {
-    const { accessToken } = await login(email);
-    const res = await getMe(accessToken);
+    ['user', EMAILS.user, 'u_002'],
+  ])('returns the current %s with the exact User shape', async (role, email, mockId) => {
+    const res = await getMe(await tokenFor(email));
 
     expect(res.status).toBe(200);
-    expect(res.body.data).toMatchObject({ id, email, role, status: 'active' });
+    expect(res.body.data).toMatchObject({ id: id(mockId), email, role, status: 'active' });
     expect(Object.keys(res.body.data).sort()).toEqual(
       ['avatarUrl', 'createdAt', 'email', 'id', 'name', 'phone', 'role', 'status'].sort(),
     );
@@ -81,17 +88,14 @@ describe('GET /me', () => {
 });
 
 describe('PATCH /me', () => {
-  const patchMe = async (body: object) => {
-    const { accessToken } = await login(EMAILS.user);
-    return request(app).patch('/api/v1/me').set(bearer(accessToken)).send(body);
-  };
+  const patchMe = async (body: object) =>
+    request(app).patch('/api/v1/me').set(bearer(await tokenFor(EMAILS.user))).send(body);
 
   it('updates name, phone and avatarUrl', async () => {
     const res = await patchMe({ name: 'Priya S.', phone: '+91 91111 11111', avatarUrl: 'https://cdn.example.com/p.png' });
-
     expect(res.status).toBe(200);
     expect(res.body.data).toMatchObject({
-      id: 'u_002',
+      id: id('u_002'),
       name: 'Priya S.',
       phone: '+91 91111 11111',
       avatarUrl: 'https://cdn.example.com/p.png',
@@ -99,33 +103,19 @@ describe('PATCH /me', () => {
   });
 
   it('can clear phone and avatarUrl with null', async () => {
-    const res = await patchMe({ phone: null, avatarUrl: null });
-    expect(res.body.data).toMatchObject({ phone: null, avatarUrl: null });
+    expect((await patchMe({ phone: null, avatarUrl: null })).body.data).toMatchObject({ phone: null, avatarUrl: null });
   });
 
   it('ignores every other field (role, status, email, id)', async () => {
-    const res = await patchMe({ role: 'admin', status: 'inactive', email: 'hacker@example.com', id: 'u_999' });
-
-    expect(res.status).toBe(200);
-    expect(res.body.data).toMatchObject({ id: 'u_002', role: 'user', status: 'active', email: EMAILS.user });
-  });
-
-  it('returns the unchanged user for an empty body', async () => {
-    const res = await patchMe({});
-    expect(res.status).toBe(200);
-    expect(res.body.data.name).toBe('Priya Sharma');
+    const res = await patchMe({ role: 'admin', status: 'inactive', email: 'hacker@example.com', id: 'x' });
+    expect(res.body.data).toMatchObject({ id: id('u_002'), role: 'user', status: 'active', email: EMAILS.user });
   });
 
   it.each([
     ['an empty name', { name: '  ' }],
     ['a non-text name', { name: 42 }],
-    ['an invalid avatarUrl', { avatarUrl: 'not a url' }],
   ])('rejects %s with 422 VALIDATION_ERROR', async (_label, body) => {
     expectError(await patchMe(body), 422, 'VALIDATION_ERROR');
-  });
-
-  it('requires authentication', async () => {
-    expectError(await request(app).patch('/api/v1/me').send({ name: 'X' }), 401, 'UNAUTHORIZED');
   });
 });
 

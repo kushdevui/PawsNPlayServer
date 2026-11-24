@@ -1,6 +1,6 @@
 export const DEFAULT_PAGE = 1;
-export const DEFAULT_LIMIT = 20;
-export const MAX_LIMIT = 100;
+export const DEFAULT_LIMIT = 50;
+export const MAX_LIMIT = 500;
 
 export interface Pagination {
   page: number;
@@ -15,7 +15,7 @@ const toInt = (value: unknown): number => {
 
 /**
  * Lenient like the app's mock `list()` helper: missing/invalid values fall back to defaults,
- * page >= 1, 1 <= limit <= 100.
+ * page >= 1, 1 <= limit <= 500 (spec §3).
  */
 export function parsePagination(query: Record<string, unknown>): Pagination {
   const page = Math.max(1, toInt(query.page) || DEFAULT_PAGE);

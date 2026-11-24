@@ -2,43 +2,394 @@
   "baseUrl": "/api/v1",
   "conventions": {
     "auth": "Authorization: Bearer <accessToken>",
-    "list": { "data": "[...]", "meta": { "total": 0, "page": 1, "limit": 20 } },
-    "single": { "data": "{...}" },
-    "error": { "error": { "code": "NOT_FOUND", "message": "Booking not found" } },
-    "pagination": "?page=1&limit=20"
+    "dates": "ISO-8601 UTC strings; the app converts to/from local time",
+    "list": {
+      "data": "[...]",
+      "meta": {
+        "total": 0,
+        "page": 1,
+        "limit": 50
+      }
+    },
+    "single": {
+      "data": "{...}"
+    },
+    "error": {
+      "error": {
+        "code": "CAPACITY_FULL",
+        "message": "Boarding is full (15 dogs) for part of these dates.",
+        "details": {}
+      }
+    },
+    "pagination": "?page=1&limit=50"
   },
   "endpoints": [
-    { "group": "auth", "method": "POST", "path": "/auth/login", "roles": ["public"], "body": { "email": "string", "password": "string" }, "response": { "data": { "accessToken": "string", "refreshToken": "string", "user": "User" } } },
-    { "group": "auth", "method": "POST", "path": "/auth/register", "roles": ["public"], "body": { "name": "string", "email": "string", "password": "string", "phone": "string?" }, "response": { "data": { "accessToken": "string", "refreshToken": "string", "user": "User" } } },
-    { "group": "auth", "method": "POST", "path": "/auth/refresh", "roles": ["public"], "body": { "refreshToken": "string" }, "response": { "data": { "accessToken": "string" } } },
-    { "group": "auth", "method": "POST", "path": "/auth/logout", "roles": ["any"], "response": { "data": { "success": true } } },
-    { "group": "auth", "method": "GET", "path": "/me", "roles": ["any"], "response": { "data": "User" } },
-    { "group": "auth", "method": "PATCH", "path": "/me", "roles": ["any"], "body": { "name": "string?", "phone": "string?", "avatarUrl": "string?" }, "response": { "data": "User" } },
-
-    { "group": "users", "method": "GET", "path": "/users", "roles": ["admin"], "query": { "role": "admin|user|staff", "status": "active|inactive", "search": "string" }, "response": "List<User>", "source": "data/users.json" },
-    { "group": "users", "method": "GET", "path": "/users/:id", "roles": ["admin"], "response": { "data": "User" }, "source": "data/users.json" },
-    { "group": "users", "method": "PATCH", "path": "/users/:id", "roles": ["admin"], "body": { "role": "Role?", "status": "active|inactive?" }, "response": { "data": "User" }, "source": "data/users.json" },
-
-    { "group": "pets", "method": "GET", "path": "/pets", "roles": ["user", "staff", "admin"], "notes": "user: own pets only; staff/admin: all", "query": { "species": "dog|cat", "ownerId": "string (admin)" }, "response": "List<Pet>", "source": "data/pets.json" },
-    { "group": "pets", "method": "GET", "path": "/pets/:id", "roles": ["user", "staff", "admin"], "response": { "data": "Pet" }, "source": "data/pets.json" },
-    { "group": "pets", "method": "POST", "path": "/pets", "roles": ["user", "admin"], "body": "PetInput", "response": { "data": "Pet" }, "source": "data/pets.json" },
-    { "group": "pets", "method": "PATCH", "path": "/pets/:id", "roles": ["user", "admin"], "body": "Partial<PetInput>", "response": { "data": "Pet" }, "source": "data/pets.json" },
-    { "group": "pets", "method": "DELETE", "path": "/pets/:id", "roles": ["user", "admin"], "response": { "data": { "success": true } }, "source": "data/pets.json" },
-
-    { "group": "services", "method": "GET", "path": "/services", "roles": ["any"], "notes": "non-admins only see active services", "query": { "category": "daycare|grooming|play|walking|training" }, "response": "List<Service>", "source": "data/services.json" },
-    { "group": "services", "method": "GET", "path": "/services/:id", "roles": ["any"], "response": { "data": "Service" }, "source": "data/services.json" },
-    { "group": "services", "method": "POST", "path": "/services", "roles": ["admin"], "body": "ServiceInput", "response": { "data": "Service" }, "source": "data/services.json" },
-    { "group": "services", "method": "PATCH", "path": "/services/:id", "roles": ["admin"], "body": "Partial<ServiceInput>", "response": { "data": "Service" }, "source": "data/services.json" },
-
-    { "group": "bookings", "method": "GET", "path": "/bookings", "roles": ["user", "staff", "admin"], "notes": "user: own; staff: assigned to them; admin: all", "query": { "status": "pending|confirmed|completed|cancelled", "from": "ISO date", "to": "ISO date" }, "response": "List<Booking>", "source": "data/bookings.json" },
-    { "group": "bookings", "method": "GET", "path": "/bookings/:id", "roles": ["user", "staff", "admin"], "response": { "data": "Booking" }, "source": "data/bookings.json" },
-    { "group": "bookings", "method": "POST", "path": "/bookings", "roles": ["user"], "body": { "petId": "string", "serviceId": "string", "startTime": "ISO datetime", "notes": "string?" }, "response": { "data": "Booking" }, "source": "data/bookings.json" },
-    { "group": "bookings", "method": "PATCH", "path": "/bookings/:id/status", "roles": ["user", "staff", "admin"], "notes": "user: cancel own pending/confirmed; staff: complete assigned; admin: any", "body": { "status": "confirmed|completed|cancelled" }, "response": { "data": "Booking" }, "source": "data/bookings.json" },
-    { "group": "bookings", "method": "PATCH", "path": "/bookings/:id/assign", "roles": ["admin"], "body": { "staffId": "string" }, "response": { "data": "Booking" }, "source": "data/bookings.json" },
-
-    { "group": "notifications", "method": "GET", "path": "/notifications", "roles": ["any"], "query": { "unread": "true|false" }, "response": "List<Notification>", "source": "data/notifications.json" },
-    { "group": "notifications", "method": "PATCH", "path": "/notifications/:id/read", "roles": ["any"], "response": { "data": "Notification" }, "source": "data/notifications.json" },
-
-    { "group": "admin", "method": "GET", "path": "/admin/dashboard", "roles": ["admin"], "response": { "data": "DashboardStats" }, "notes": "computed from the other mock files" }
+    {
+      "group": "auth",
+      "method": "POST",
+      "path": "/auth/login",
+      "roles": [
+        "public"
+      ],
+      "body": {
+        "email": "string",
+        "password": "string"
+      },
+      "response": {
+        "data": {
+          "accessToken": "string",
+          "refreshToken": "string",
+          "user": "User"
+        }
+      }
+    },
+    {
+      "group": "auth",
+      "method": "POST",
+      "path": "/auth/register",
+      "roles": [
+        "public"
+      ],
+      "body": {
+        "name": "string",
+        "email": "string",
+        "password": "string",
+        "phone": "string?"
+      },
+      "response": {
+        "data": "AuthResponse"
+      }
+    },
+    {
+      "group": "auth",
+      "method": "POST",
+      "path": "/auth/refresh",
+      "roles": [
+        "public"
+      ],
+      "body": {
+        "refreshToken": "string"
+      },
+      "response": {
+        "data": {
+          "accessToken": "string"
+        }
+      }
+    },
+    {
+      "group": "auth",
+      "method": "POST",
+      "path": "/auth/logout",
+      "roles": [
+        "any"
+      ]
+    },
+    {
+      "group": "auth",
+      "method": "GET",
+      "path": "/me",
+      "roles": [
+        "any"
+      ],
+      "response": {
+        "data": "User"
+      }
+    },
+    {
+      "group": "auth",
+      "method": "PATCH",
+      "path": "/me",
+      "roles": [
+        "any"
+      ],
+      "body": {
+        "name": "string?",
+        "phone": "string?",
+        "avatarUrl": "string?"
+      }
+    },
+    {
+      "group": "users",
+      "method": "GET",
+      "path": "/users",
+      "roles": [
+        "admin"
+      ],
+      "query": {
+        "role": "admin|staff|user",
+        "status": "active|inactive",
+        "search": "string"
+      },
+      "source": "data/users.json"
+    },
+    {
+      "group": "users",
+      "method": "GET",
+      "path": "/users/:id",
+      "roles": [
+        "admin"
+      ]
+    },
+    {
+      "group": "users",
+      "method": "PATCH",
+      "path": "/users/:id",
+      "roles": [
+        "admin"
+      ],
+      "body": {
+        "role": "Role?",
+        "status": "UserStatus?"
+      }
+    },
+    {
+      "group": "dogs",
+      "method": "GET",
+      "path": "/dogs",
+      "roles": [
+        "admin",
+        "staff"
+      ],
+      "query": {
+        "search": "dog name, breed, owner name or phone",
+        "status": "active (default) | archived | all"
+      },
+      "response": "List<Dog>",
+      "source": "data/dogs.json"
+    },
+    {
+      "group": "dogs",
+      "method": "GET",
+      "path": "/dogs/:id",
+      "roles": [
+        "admin",
+        "staff"
+      ],
+      "response": {
+        "data": "Dog"
+      }
+    },
+    {
+      "group": "dogs",
+      "method": "POST",
+      "path": "/dogs",
+      "roles": [
+        "admin"
+      ],
+      "body": "DogInput (name, ownerName, ownerPhone required)",
+      "response": {
+        "data": "Dog"
+      }
+    },
+    {
+      "group": "dogs",
+      "method": "PATCH",
+      "path": "/dogs/:id",
+      "roles": [
+        "admin"
+      ],
+      "body": "Partial<DogInput> - status: 'archived' fails with HAS_OPEN_BOOKINGS if the dog has open stays",
+      "response": {
+        "data": "Dog"
+      }
+    },
+    {
+      "group": "bookings",
+      "method": "GET",
+      "path": "/bookings",
+      "roles": [
+        "admin",
+        "staff"
+      ],
+      "query": {
+        "from": "ISO - stays overlapping [from, to)",
+        "to": "ISO",
+        "status": "BookingStatus",
+        "dogId": "string",
+        "paymentStatus": "unpaid | partial | paid | overpaid | due"
+      },
+      "response": "List<Booking> sorted by checkIn, each with dog summary",
+      "source": "data/bookings.json"
+    },
+    {
+      "group": "bookings",
+      "method": "GET",
+      "path": "/bookings/:id",
+      "roles": [
+        "admin",
+        "staff"
+      ],
+      "response": {
+        "data": "Booking"
+      }
+    },
+    {
+      "group": "bookings",
+      "method": "POST",
+      "path": "/bookings",
+      "roles": [
+        "admin"
+      ],
+      "body": {
+        "dogId": "string",
+        "checkIn": "ISO",
+        "checkOut": "ISO",
+        "kennel": "string?",
+        "pricePerNight": "number? (default settings.pricePerNight)",
+        "notes": "string?"
+      },
+      "errors": [
+        "VALIDATION_ERROR",
+        "DOG_ALREADY_BOOKED",
+        "CAPACITY_FULL"
+      ],
+      "response": {
+        "data": "Booking (status confirmed, nights + totalAmount computed)"
+      }
+    },
+    {
+      "group": "bookings",
+      "method": "PATCH",
+      "path": "/bookings/:id",
+      "roles": [
+        "admin"
+      ],
+      "body": "Partial<BookingInput> - only confirmed/checked_in; dog locked after check-in",
+      "errors": [
+        "INVALID_STATE",
+        "DOG_ALREADY_BOOKED",
+        "CAPACITY_FULL"
+      ]
+    },
+    {
+      "group": "bookings",
+      "method": "PATCH",
+      "path": "/bookings/:id/status",
+      "roles": [
+        "admin",
+        "staff"
+      ],
+      "body": {
+        "status": "checked_in | checked_out | cancelled | confirmed"
+      },
+      "notes": "pending->confirmed|cancelled, confirmed->checked_in|cancelled, checked_in->checked_out",
+      "errors": [
+        "INVALID_STATE",
+        "CAPACITY_FULL"
+      ]
+    },
+    {
+      "group": "payments",
+      "method": "POST",
+      "path": "/bookings/:id/payments",
+      "roles": [
+        "admin"
+      ],
+      "body": {
+        "amount": "number > 0",
+        "type": "advance | payment | refund",
+        "method": "cash | upi | card | bank",
+        "note": "string?",
+        "receivedAt": "ISO? (default now)"
+      },
+      "errors": [
+        "VALIDATION_ERROR",
+        "OVERPAYMENT",
+        "INVALID_STATE"
+      ],
+      "response": {
+        "data": "Booking (with payments, amountPaid, balanceDue, paymentStatus)"
+      }
+    },
+    {
+      "group": "payments",
+      "method": "DELETE",
+      "path": "/bookings/:id/payments/:paymentId",
+      "roles": [
+        "admin"
+      ],
+      "notes": "fix a mistaken entry",
+      "response": {
+        "data": "Booking"
+      }
+    },
+    {
+      "group": "admin",
+      "method": "GET",
+      "path": "/admin/billing",
+      "roles": [
+        "admin"
+      ],
+      "query": {
+        "from": "ISO",
+        "to": "ISO - any period (week, month, custom)"
+      },
+      "response": {
+        "data": "BillingSummary: expected, received, due, advances, paid/partial/unpaid counts (stays checking in [from,to), cancelled excluded); collected, collectedCount (payments received in [from,to)); outstandingAllTime, outstandingBookings"
+      }
+    },
+    {
+      "group": "admin",
+      "method": "GET",
+      "path": "/admin/occupancy",
+      "roles": [
+        "admin",
+        "staff"
+      ],
+      "query": {
+        "from": "YYYY-MM-DD",
+        "to": "YYYY-MM-DD (exclusive, max 62 days)"
+      },
+      "response": {
+        "data": {
+          "capacity": "number",
+          "days": "[{date, occupied (peak at same time), available, checkIns, checkOuts}]"
+        }
+      }
+    },
+    {
+      "group": "settings",
+      "method": "GET",
+      "path": "/settings",
+      "roles": [
+        "admin",
+        "staff"
+      ],
+      "response": {
+        "data": "FacilitySettings"
+      },
+      "source": "data/settings.json"
+    },
+    {
+      "group": "settings",
+      "method": "PATCH",
+      "path": "/settings",
+      "roles": [
+        "admin"
+      ],
+      "body": {
+        "capacity": "int > 0",
+        "pricePerNight": "number",
+        "defaultCheckInTime": "HH:mm",
+        "defaultCheckOutTime": "HH:mm",
+        "facilityName": "string"
+      },
+      "errors": [
+        "VALIDATION_ERROR",
+        "CAPACITY_BELOW_OCCUPANCY"
+      ]
+    },
+    {
+      "group": "admin",
+      "method": "GET",
+      "path": "/admin/dashboard",
+      "roles": [
+        "admin",
+        "staff"
+      ],
+      "response": {
+        "data": "DashboardStats: capacity, occupiedNow, availableNow, todayCheckIns, todayCheckOuts, upcoming (7 days), occupancyNext7Days, activeDogs, bookingsThisMonth, paymentsDue, paymentsDueBookings"
+      }
+    }
   ]
 }

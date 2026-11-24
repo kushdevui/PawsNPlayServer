@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+
+# env
+.env
+.env*.local
+
+# misc
+*.log
+.DS_Store
+*.pem
+*.key

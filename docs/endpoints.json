@@ -1,0 +1,44 @@
+{
+  "baseUrl": "/api/v1",
+  "conventions": {
+    "auth": "Authorization: Bearer <accessToken>",
+    "list": { "data": "[...]", "meta": { "total": 0, "page": 1, "limit": 20 } },
+    "single": { "data": "{...}" },
+    "error": { "error": { "code": "NOT_FOUND", "message": "Booking not found" } },
+    "pagination": "?page=1&limit=20"
+  },
+  "endpoints": [
+    { "group": "auth", "method": "POST", "path": "/auth/login", "roles": ["public"], "body": { "email": "string", "password": "string" }, "response": { "data": { "accessToken": "string", "refreshToken": "string", "user": "User" } } },
+    { "group": "auth", "method": "POST", "path": "/auth/register", "roles": ["public"], "body": { "name": "string", "email": "string", "password": "string", "phone": "string?" }, "response": { "data": { "accessToken": "string", "refreshToken": "string", "user": "User" } } },
+    { "group": "auth", "method": "POST", "path": "/auth/refresh", "roles": ["public"], "body": { "refreshToken": "string" }, "response": { "data": { "accessToken": "string" } } },
+    { "group": "auth", "method": "POST", "path": "/auth/logout", "roles": ["any"], "response": { "data": { "success": true } } },
+    { "group": "auth", "method": "GET", "path": "/me", "roles": ["any"], "response": { "data": "User" } },
+    { "group": "auth", "method": "PATCH", "path": "/me", "roles": ["any"], "body": { "name": "string?", "phone": "string?", "avatarUrl": "string?" }, "response": { "data": "User" } },
+
+    { "group": "users", "method": "GET", "path": "/users", "roles": ["admin"], "query": { "role": "admin|user|staff", "status": "active|inactive", "search": "string" }, "response": "List<User>", "source": "data/users.json" },
+    { "group": "users", "method": "GET", "path": "/users/:id", "roles": ["admin"], "response": { "data": "User" }, "source": "data/users.json" },
+    { "group": "users", "method": "PATCH", "path": "/users/:id", "roles": ["admin"], "body": { "role": "Role?", "status": "active|inactive?" }, "response": { "data": "User" }, "source": "data/users.json" },
+
+    { "group": "pets", "method": "GET", "path": "/pets", "roles": ["user", "staff", "admin"], "notes": "user: own pets only; staff/admin: all", "query": { "species": "dog|cat", "ownerId": "string (admin)" }, "response": "List<Pet>", "source": "data/pets.json" },
+    { "group": "pets", "method": "GET", "path": "/pets/:id", "roles": ["user", "staff", "admin"], "response": { "data": "Pet" }, "source": "data/pets.json" },
+    { "group": "pets", "method": "POST", "path": "/pets", "roles": ["user", "admin"], "body": "PetInput", "response": { "data": "Pet" }, "source": "data/pets.json" },
+    { "group": "pets", "method": "PATCH", "path": "/pets/:id", "roles": ["user", "admin"], "body": "Partial<PetInput>", "response": { "data": "Pet" }, "source": "data/pets.json" },
+    { "group": "pets", "method": "DELETE", "path": "/pets/:id", "roles": ["user", "admin"], "response": { "data": { "success": true } }, "source": "data/pets.json" },
+
+    { "group": "services", "method": "GET", "path": "/services", "roles": ["any"], "notes": "non-admins only see active services", "query": { "category": "daycare|grooming|play|walking|training" }, "response": "List<Service>", "source": "data/services.json" },
+    { "group": "services", "method": "GET", "path": "/services/:id", "roles": ["any"], "response": { "data": "Service" }, "source": "data/services.json" },
+    { "group": "services", "method": "POST", "path": "/services", "roles": ["admin"], "body": "ServiceInput", "response": { "data": "Service" }, "source": "data/services.json" },
+    { "group": "services", "method": "PATCH", "path": "/services/:id", "roles": ["admin"], "body": "Partial<ServiceInput>", "response": { "data": "Service" }, "source": "data/services.json" },
+
+    { "group": "bookings", "method": "GET", "path": "/bookings", "roles": ["user", "staff", "admin"], "notes": "user: own; staff: assigned to them; admin: all", "query": { "status": "pending|confirmed|completed|cancelled", "from": "ISO date", "to": "ISO date" }, "response": "List<Booking>", "source": "data/bookings.json" },
+    { "group": "bookings", "method": "GET", "path": "/bookings/:id", "roles": ["user", "staff", "admin"], "response": { "data": "Booking" }, "source": "data/bookings.json" },
+    { "group": "bookings", "method": "POST", "path": "/bookings", "roles": ["user"], "body": { "petId": "string", "serviceId": "string", "startTime": "ISO datetime", "notes": "string?" }, "response": { "data": "Booking" }, "source": "data/bookings.json" },
+    { "group": "bookings", "method": "PATCH", "path": "/bookings/:id/status", "roles": ["user", "staff", "admin"], "notes": "user: cancel own pending/confirmed; staff: complete assigned; admin: any", "body": { "status": "confirmed|completed|cancelled" }, "response": { "data": "Booking" }, "source": "data/bookings.json" },
+    { "group": "bookings", "method": "PATCH", "path": "/bookings/:id/assign", "roles": ["admin"], "body": { "staffId": "string" }, "response": { "data": "Booking" }, "source": "data/bookings.json" },
+
+    { "group": "notifications", "method": "GET", "path": "/notifications", "roles": ["any"], "query": { "unread": "true|false" }, "response": "List<Notification>", "source": "data/notifications.json" },
+    { "group": "notifications", "method": "PATCH", "path": "/notifications/:id/read", "roles": ["any"], "response": { "data": "Notification" }, "source": "data/notifications.json" },
+
+    { "group": "admin", "method": "GET", "path": "/admin/dashboard", "roles": ["admin"], "response": { "data": "DashboardStats" }, "notes": "computed from the other mock files" }
+  ]
+}

@@ -59,7 +59,7 @@ export async function getBooking(id: string): Promise<PublicBooking> {
  * Shared create/edit validation, in the order of spec §7.5 steps 1-6 (§8.1, §8.2).
  * Must run inside withFacilityLock so the checks and the write are atomic.
  */
-async function validateStay(input: { dogId: unknown; checkIn: unknown; checkOut: unknown }, ignoreId?: string) {
+async function validateStay(input: { dogId?: unknown; checkIn?: unknown; checkOut?: unknown }, ignoreId?: string) {
   const dog = isObjectId(input.dogId) ? await DogModel.findById(input.dogId).lean() : null;
   if (!dog) throw AppError.validation('Choose a dog.');
   if (dog.status !== 'active') throw AppError.validation(`${dog.name} is archived.`);

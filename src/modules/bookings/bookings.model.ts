@@ -1,4 +1,4 @@
-import { Schema, Types, model } from 'mongoose';
+import { Schema, model, type Types } from 'mongoose';
 import { baseSchemaOptions } from '../../db/toJSON.js';
 
 export const BOOKING_STATUSES = ['pending', 'confirmed', 'checked_in', 'checked_out', 'cancelled'] as const;

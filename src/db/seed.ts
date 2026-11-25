@@ -72,7 +72,9 @@ async function insertValidated<T>(model: Model<T>, docs: Json[]): Promise<void> 
   if (docs.length === 0) return;
   const hydrated = docs.map((doc) => new model(doc));
   await Promise.all(hydrated.map((doc) => doc.validate()));
-  await model.collection.insertMany(hydrated.map((doc) => doc.toObject({ transform: false })));
+  // Plain objects with real ObjectIds/Dates; the cast only bridges Mongoose's generic doc type to the driver's.
+  const raw = hydrated.map((doc) => doc.toObject({ transform: false }) as mongoose.mongo.OptionalId<mongoose.mongo.Document>);
+  await model.collection.insertMany(raw);
 }
 
 /**

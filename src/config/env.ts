@@ -32,6 +32,9 @@ const envSchema = z
           .map((origin) => origin.trim())
           .filter(Boolean),
       ),
+    // Number of reverse proxies in front of the API (Nginx on EC2 = 1). 0 = none (local dev).
+    // Needed so rate limits and logs see the real client IP instead of the proxy's.
+    TRUST_PROXY: z.coerce.number().int().min(0).max(5).default(0),
     // Uploads: local (dev, files in UPLOAD_DIR served at /uploads) | s3 | cloudinary (not implemented yet).
     UPLOAD_PROVIDER: z.enum(['local', 's3', 'cloudinary']).default('local'),
     UPLOAD_DIR: z.string().min(1).default('uploads'),

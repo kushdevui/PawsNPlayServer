@@ -17,6 +17,7 @@ const allowAnyOrigin = env.CORS_ORIGINS.includes('*');
 /** Builds the Express app without listening, so tests can use it with Supertest. */
 export function createApp() {
   const app = express();
+  if (env.TRUST_PROXY > 0) app.set('trust proxy', env.TRUST_PROXY);
 
   app.use(helmet());
   app.use(

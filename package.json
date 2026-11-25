@@ -17,7 +17,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "seed:today": "tsx scripts/seed.ts --shift-to-today"
+    "seed:today": "tsx scripts/seed.ts --shift-to-today",
+    "reset-users": "tsx scripts/reset-users.ts"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

@@ -3,14 +3,17 @@
 #
 #   bash <(curl -fsSL https://raw.githubusercontent.com/kushdevui/PawsNPlayServer/main/scripts/deploy-ec2.sh)
 #
-# One instance serves everything through Nginx:
+# Step 1 of 2. This script sets up the server side of one instance, served through Nginx:
 #   /api/v1/*, /uploads/*  -> Node API on 127.0.0.1:4000 (PM2)
-#   /faqs, /know-your-dog, /admin, ... -> the app's web build (PawsNPlayRender); GET / redirects to /faqs
-#   everything else        -> Expo web build of the app (SPA: /login, /admin/..., /staff, /user)
+#   GET /                  -> 302 /faqs
+#   everything else        -> the app's web build in /var/www/pawsnplay/app (SPA: /faqs, /admin, /login, ...)
+# Step 2: the app repo deploys its own web build into /var/www/pawsnplay/app:
+#   cd ~/PawsNPlayRender && bash scripts/deploy-web.sh
+# It reads SITE_URL (the public origin) from ~/.pawsnplay-deploy, which this script keeps up to date.
 #
 # First run: installs Node 22, git, Nginx, PM2 (+ swap on small instances), clones the API to
 # ~/PawsNPlayServer, asks for MONGODB_URI and the domain once, writes .env with fresh JWT secrets,
-# builds the API and the web app, configures Nginx and - when the domain points here - HTTPS (certbot).
+# builds the API, configures Nginx and - when the domain points here - HTTPS (certbot).
 # Later runs: pull the latest code, rebuild and restart. .env is never overwritten (only PUBLIC_BASE_URL
 # moves from http://<ip> to https://<domain> once HTTPS works). Safe to re-run any time.
 #
@@ -18,23 +21,20 @@
 #   MONGODB_URI=...      first run only
 #   DOMAIN=example.com   or DOMAIN= (empty) for IP-only mode; remembered in ~/.pawsnplay-deploy
 #   CERT_EMAIL=me@x.com  Let's Encrypt expiry notices (optional; remembered)
-#   APP_BRANCH=...       app branch to build (default feat/admin-boarding)
 set -euo pipefail
 
 REPO_URL="https://github.com/kushdevui/PawsNPlayServer.git"
 APP_DIR="$HOME/PawsNPlayServer"
 APP_NAME="pawsnplay-api"
-WEB_REPO_URL="https://github.com/kushdevui/PawsNPlayRender.git"
-WEB_DIR="$HOME/PawsNPlayRender"
-WEB_BRANCH="${APP_BRANCH:-feat/admin-boarding}"
 WWW_ROOT="/var/www/pawsnplay"
-STATE_FILE="$HOME/.pawsnplay-deploy" # non-secret: DOMAIN, CERT_EMAIL
+STATE_FILE="$HOME/.pawsnplay-deploy" # non-secret: DOMAIN, CERT_EMAIL, SITE_URL (read by the app's deploy-web.sh)
 DEFAULT_DOMAIN="pawsnplaywithme.com"
 
 say() { printf '\n\033[1;35m==> %s\033[0m\n' "$*"; }
 warn() { printf '\n\033[1;33mWARNING: %s\033[0m\n' "$*" >&2; }
 die() { printf '\n\033[1;31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
 have_tty() { [ -r /dev/tty ] && [ -w /dev/tty ] && (exec </dev/tty) 2>/dev/null; }
+write_state() { printf 'DOMAIN=%s\nCERT_EMAIL=%s\nSITE_URL=%s\n' "$DOMAIN" "$CERT_EMAIL" "${SITE_URL:-}" > "$STATE_FILE"; }
 state_get() { [ -f "$STATE_FILE" ] && grep -E "^$1=" "$STATE_FILE" | tail -n1 | cut -d= -f2- || true; }
 
 [ "$(id -u)" -ne 0 ] || die "Run this as your normal user (ubuntu / ec2-user), not as root."
@@ -76,7 +76,7 @@ if ! command -v pm2 >/dev/null; then
   sudo npm install -g pm2
 fi
 
-# ---------- 2. Swap (expo export needs memory on small instances) ----------
+# ---------- 2. Swap (the app's expo export on this box needs memory on small instances) ----------
 MEM_KB=$(awk '/^MemTotal:/ {m=$2} /^SwapTotal:/ {s=$2} END {print m+s}' /proc/meminfo)
 if [ "${MEM_KB:-0}" -lt $((3 * 1024 * 1024)) ] && [ ! -f /swapfile ]; then
   say "Adding a 2 GB swapfile (RAM + swap is below 3 GB)"
@@ -131,7 +131,8 @@ if [ -n "$DOMAIN" ] && ! [[ "$DOMAIN" =~ ^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z
   die "\"$DOMAIN\" does not look like a domain. Re-run with DOMAIN=example.com (or DOMAIN= for IP-only)."
 fi
 CERT_EMAIL="${CERT_EMAIL-$(state_get CERT_EMAIL)}"
-printf 'DOMAIN=%s\nCERT_EMAIL=%s\n' "$DOMAIN" "$CERT_EMAIL" > "$STATE_FILE"
+SITE_URL="$(state_get SITE_URL)"
+write_state
 if [ -n "$DOMAIN" ]; then say "Domain: $DOMAIN (saved in $STATE_FILE)"; else say "IP-only mode (no domain)"; fi
 
 # ---------- 5. .env (created once, never overwritten) ----------
@@ -185,7 +186,8 @@ pm2 save
 sudo env PATH="$PATH:/usr/bin" pm2 startup systemd -u "$USER" --hp "$HOME" >/dev/null
 
 # ---------- 8. robots.txt + app placeholder ----------
-# All screens (FAQs, Know Your Dog, admin, ...) come from the app's web build (PawsNPlayRender).
+# All screens (FAQs, Know Your Dog, admin, ...) come from the app's web build, published by
+# PawsNPlayRender/scripts/deploy-web.sh. This script never overwrites a real build.
 say "Preparing web root"
 sudo mkdir -p "$WWW_ROOT/app"
 if [ -f web/robots.txt ]; then
@@ -198,7 +200,11 @@ if [ ! -f "$WWW_ROOT/app/index.html" ]; then
   echo '<!doctype html><title>Paws N Play</title><p>The app is being deployed. Please check back soon.</p>' \
     | sudo tee "$WWW_ROOT/app/index.html" >/dev/null
 fi
-sudo chmod 755 /var/www "$WWW_ROOT" "$WWW_ROOT/app"
+sudo chmod 755 /var/www "$WWW_ROOT"
+# The app's deploy script publishes as the deploy user (no sudo for the copy); Nginx only needs read access.
+sudo chown -R "$USER":"$USER" "$WWW_ROOT/app"
+sudo find "$WWW_ROOT/app" -type d -exec chmod 755 {} +
+sudo find "$WWW_ROOT/app" -type f -exec chmod 644 {} +
 
 # ---------- 9. Nginx ----------
 if [ -d /etc/nginx/sites-available ]; then
@@ -362,45 +368,16 @@ if [ -n "$HTTPS" ]; then
   fi
 fi
 
+# Public origin for the app's web build (deploy-web.sh reads SITE_URL from the state file).
 if [ -n "$HTTPS" ]; then
   SITE_URL="https://$DOMAIN"
-elif [ -n "$DOMAIN" ] && resolves_here "$DOMAIN"; then
-  SITE_URL="http://$DOMAIN"
 else
   SITE_URL="http://$PUBLIC_IP"
 fi
 API_URL="$SITE_URL/api/v1"
+write_state
 
-# ---------- 11. Web app (Expo web export) ----------
-build_web() {
-  if [ -d "$WEB_DIR/.git" ]; then
-    git -C "$WEB_DIR" fetch origin "$WEB_BRANCH" &&
-      git -C "$WEB_DIR" checkout -q -f -B "$WEB_BRANCH" "origin/$WEB_BRANCH" &&
-      git -C "$WEB_DIR" reset -q --hard "origin/$WEB_BRANCH" || return 1
-  else
-    git clone --branch "$WEB_BRANCH" "$WEB_REPO_URL" "$WEB_DIR" || return 1
-  fi
-  (
-    cd "$WEB_DIR"
-    npm install --no-audit --no-fund || npm install --no-audit --no-fund --legacy-peer-deps || exit 1
-    rm -rf dist-web
-    # Build-time settings come from the environment only; the app's .env is never written.
-    CI=1 NODE_OPTIONS="--max-old-space-size=2048" EXPO_PUBLIC_API_URL="$API_URL" EXPO_PUBLIC_USE_MOCKS=false \
-      npx expo export -p web --output-dir dist-web || exit 1
-    [ -f dist-web/index.html ] || exit 1
-  ) || return 1
-  sudo rsync -a --delete --chmod=D755,F644 "$WEB_DIR/dist-web/" "$WWW_ROOT/app/"
-}
-
-say "Building the web app ($WEB_BRANCH) with EXPO_PUBLIC_API_URL=$API_URL"
-WEB_OK=""
-if build_web; then
-  WEB_OK=1
-else
-  warn "The web app build failed - the API and FAQ page are deployed, the app pages show a placeholder. Fix the build and re-run this script."
-fi
-
-# ---------- 12. Check ----------
+# ---------- 11. Check ----------
 say "Checking the API"
 OK=""
 CODE=""
@@ -424,14 +401,14 @@ else
   die "See the log above. Most often: MONGODB_URI is wrong, or Atlas Network Access does not include ${PUBLIC_IP}."
 fi
 
-ADMIN_NOTE=""
-[ -n "$WEB_OK" ] || ADMIN_NOTE=" (web build failed - placeholder page)"
 cat <<EOF
 
-FAQ page:          ${SITE_URL}/faqs
-Admin (web app):   ${SITE_URL}/admin${ADMIN_NOTE}
 API health:        ${API_URL}/health
 Phone app (.env):  EXPO_PUBLIC_API_URL=${API_URL}
+Site URL:          ${SITE_URL} (saved as SITE_URL in ${STATE_FILE})
 Logs:              pm2 logs ${APP_NAME}
 Update later:      run the same one-line command again.
+
+Next step - deploy the app: cd ~/PawsNPlayRender && bash scripts/deploy-web.sh
+  (first time: git clone -b feat/admin-boarding https://github.com/kushdevui/PawsNPlayRender.git ~/PawsNPlayRender)
 EOF

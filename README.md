@@ -139,27 +139,41 @@ One instance serves everything through Nginx:
 |---|---|
 | `/api/v1/*`, `/uploads/*` | the API (PM2, `127.0.0.1:4000`) |
 | `/` | redirects to `/faqs` (an app route) |
-| everything else | the Expo web build of the app, e.g. `/login` and `/admin` |
+| everything else | the Expo web build of the app in `/var/www/pawsnplay/app`, e.g. `/faqs`, `/login`, `/admin` |
+
+The two repos deploy separately, in two steps. This repo's script sets up the server; the app repo's script builds
+and publishes the web app.
 
 1. **DNS** at your registrar: create an `A` record for `@` and another for `www`, both pointing to the instance's
    public IP. Use an Elastic IP so the address survives a stop/start.
 2. **Security group**: allow inbound `22` (SSH, ideally from your IP only), `80` and `443` from anywhere.
 3. **MongoDB Atlas -> Network Access**: add the instance's public IP.
-4. **On the instance** (Ubuntu or Amazon Linux 2023, as `ubuntu` / `ec2-user`):
+4. **Step 1, server** (on the instance, Amazon Linux 2023 as `ec2-user`, or Ubuntu as `ubuntu`):
    ```sh
    bash <(curl -fsSL https://raw.githubusercontent.com/kushdevui/PawsNPlayServer/main/scripts/deploy-ec2.sh)
    ```
    - The first run asks for `MONGODB_URI`, the domain (default `pawsnplaywithme.com`; type `none` for IP-only) and
-     an optional email for certificate notices. The domain is remembered in `~/.pawsnplay-deploy`.
+     an optional email for certificate notices.
    - To skip the questions: `DOMAIN=pawsnplaywithme.com CERT_EMAIL=you@example.com MONGODB_URI=... bash <(curl ...)`.
-   - The script also builds the app from the `feat/admin-boarding` branch (override with `APP_BRANCH=...`).
-     `EXPO_PUBLIC_API_URL` points at this server.
-   - If the domain already points to the instance, it gets a free Let's Encrypt certificate, which renews
+   - It installs Node 22, Nginx and PM2, adds swap on small instances, builds and starts the API, and configures
+     Nginx.
+   - If the domain already points to the instance, it also gets a free Let's Encrypt certificate, which renews
      automatically and redirects HTTP to HTTPS. Otherwise it prints the DNS records to create and serves plain
      HTTP until you run it again.
-   - Re-run the same command to update. `.env` is never overwritten; only `PUBLIC_BASE_URL` changes from
+   - It saves `DOMAIN`, `CERT_EMAIL` and `SITE_URL` (`https://<domain>`, or `http://<ip>` without a certificate) in
+     `~/.pawsnplay-deploy`, a non-secret file the app script reads.
+   - It prepares `/var/www/pawsnplay/app`, owned by your user so the app script can publish without sudo. A real
+     build there is never overwritten.
+   - Re-run the same command to update the API. `.env` is never overwritten; only `PUBLIC_BASE_URL` changes from
      `http://<ip>` to `https://<domain>` once HTTPS works.
-5. **Phone app**: set `EXPO_PUBLIC_API_URL=https://pawsnplaywithme.com/api/v1`.
+5. **Step 2, app**: build and publish the web app from the app repo:
+   ```sh
+   git clone -b feat/admin-boarding https://github.com/kushdevui/PawsNPlayRender.git ~/PawsNPlayRender   # first time
+   cd ~/PawsNPlayRender && bash scripts/deploy-web.sh
+   ```
+   It builds the Expo web export against `SITE_URL/api/v1`, copies it to `/var/www/pawsnplay/app` and reloads Nginx.
+   Re-run it whenever the app changes.
+6. **Phone app**: set `EXPO_PUBLIC_API_URL=https://pawsnplaywithme.com/api/v1`.
 
 ## Project layout
 ```

@@ -187,7 +187,7 @@ sudo env PATH="$PATH:/usr/bin" pm2 startup systemd -u "$USER" --hp "$HOME" >/dev
 # ---------- 8. Static pages (web/<page>/) + robots.txt ----------
 say "Publishing static pages (web/*)"
 sudo mkdir -p "$WWW_ROOT/app" "$WWW_ROOT/faqs"
-# Every web/<page>/index.html becomes /<page>/ (faqs, know-your-dog, ...). Names used by the app or the API
+# Every web/<page>/index.html becomes /<page>/ (e.g. faqs). Names used by the app or the API
 # are skipped so they can never shadow app routes.
 STATIC_PAGES=()
 for dir in web/*/; do

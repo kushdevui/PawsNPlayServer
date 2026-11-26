@@ -398,7 +398,7 @@
       "roles": [
         "public"
       ],
-      "notes": "multipart/form-data from web/know-your-dog. Honeypot `website` non-empty -> 201 fake id, nothing stored. Rate limit per IP: 5/hour, 20/day.",
+      "notes": "multipart/form-data from the app's Know Your Dog screen. Honeypot `website` non-empty -> 201 fake id, nothing stored. Rate limit per IP: 5/hour, 20/day.",
       "body": {
         "answers": "JSON string: { ownerName, ownerPhone, emergencyName, emergencyPhone, dogName, breed, age, sex: male|female, sterilised: yes|no, signName, confirmTrue: true, ...optional keys (see BACKEND_API_SPEC.md §7.12) }",
         "website": "string (honeypot, leave empty)",

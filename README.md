@@ -95,8 +95,8 @@ curl -s -X POST $API/uploads -H "$(H $ADMIN)" -F "file=@card.pdf;type=applicatio
 Access tokens last 15 minutes. Get a new one with `POST /auth/refresh` and the body `{"refreshToken":"..."}`.
 
 ### "Know Your Dog" questionnaire
-`web/know-your-dog/index.html` is a public page, served at `/know-your-dog/` on the EC2 setup. Owners use it to send
-their dog's details before a stay.
+The form screen is part of the app (PawsNPlayRender, public route `/know-your-dog`, also on the web build).
+Owners use it to send their dog's details before a stay; this server only stores and serves the submissions.
 - It posts `multipart/form-data` to the public `POST /api/v1/questionnaires`: `answers` (a JSON string), `website`
   (a honeypot) and up to 5 photo/PDF `documents`.
 - Submissions are rate-limited per IP (`QUESTIONNAIRE_RATE_PER_HOUR` = 5, `QUESTIONNAIRE_RATE_PER_DAY` = 20).

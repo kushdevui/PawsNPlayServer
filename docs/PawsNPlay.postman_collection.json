@@ -1188,7 +1188,7 @@
                 "questionnaires"
               ]
             },
-            "description": "What web/know-your-dog sends. Pick 0-5 files for `documents` (or disable that row). Rate-limited per IP."
+            "description": "What the app's Know Your Dog screen sends. Pick 0-5 files for `documents` (or disable that row). Rate-limited per IP."
           },
           "event": [
             {

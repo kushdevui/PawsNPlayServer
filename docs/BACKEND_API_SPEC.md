@@ -594,9 +594,8 @@ The app then saves `{ kind, name, uri: url, mimeType, size, uploadedAt }` into `
 
 ### 7.12 Questionnaires ("Know Your Dog")
 
-> **Server-first.** The public page `web/know-your-dog/index.html` is served by the API server at `/know-your-dog/`
-> and posts here. The mobile app has **no screen for this yet**; admins and staff read submissions through the API
-> (or Postman) until one is built.
+> The form screen lives in the app (public route `/know-your-dog`, no login) and posts here. Admins and staff read
+> submissions through the API (or Postman) until an admin screen is built.
 
 #### `POST /questionnaires` - public (no auth) · `multipart/form-data`
 | Field | Content |

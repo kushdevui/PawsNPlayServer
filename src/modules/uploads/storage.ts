@@ -17,7 +17,11 @@ export interface UploadInput {
   mimeType: string;
   /** Origin to build absolute URLs for local storage, e.g. http://192.168.1.20:4000 */
   origin: string;
+  /** Top-level folder of the key (default dogs). */
+  folder?: StorageFolder;
 }
+
+export type StorageFolder = 'dogs' | 'questionnaires';
 
 /** Absolute directory for local uploads (UPLOAD_DIR, relative to the project root/cwd). */
 export const localUploadRoot = () => path.resolve(process.cwd(), env.UPLOAD_DIR);
@@ -29,15 +33,15 @@ export function safeFileName(name: string): string {
   return trimmed || 'file';
 }
 
-/** Spec §7.11 key layout: dogs/<yyyy>/<mm>/<uuid>-<safeName>. */
-export function storageKey(originalName: string, at = new Date()): string {
+/** Spec §7.11 key layout: <folder>/<yyyy>/<mm>/<uuid>-<safeName> (folder: dogs | questionnaires). */
+export function storageKey(originalName: string, at = new Date(), folder: StorageFolder = 'dogs'): string {
   const yyyy = String(at.getUTCFullYear());
   const mm = String(at.getUTCMonth() + 1).padStart(2, '0');
-  return `dogs/${yyyy}/${mm}/${randomUUID()}-${safeFileName(originalName)}`;
+  return `${folder}/${yyyy}/${mm}/${randomUUID()}-${safeFileName(originalName)}`;
 }
 
-async function saveLocal({ buffer, originalName, origin }: UploadInput): Promise<StoredFile> {
-  const key = storageKey(originalName);
+async function saveLocal({ buffer, originalName, origin, folder }: UploadInput): Promise<StoredFile> {
+  const key = storageKey(originalName, new Date(), folder ?? 'dogs');
   const target = path.join(localUploadRoot(), ...key.split('/'));
   await mkdir(path.dirname(target), { recursive: true });
   await writeFile(target, buffer, { flag: 'wx' });

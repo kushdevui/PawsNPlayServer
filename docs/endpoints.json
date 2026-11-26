@@ -390,6 +390,67 @@
       "response": {
         "data": "DashboardStats: capacity, occupiedNow, availableNow, todayCheckIns, todayCheckOuts, upcoming (7 days), occupancyNext7Days, activeDogs, bookingsThisMonth, paymentsDue, paymentsDueBookings"
       }
+    },
+    {
+      "group": "questionnaires",
+      "method": "POST",
+      "path": "/questionnaires",
+      "roles": [
+        "public"
+      ],
+      "notes": "multipart/form-data from web/know-your-dog. Honeypot `website` non-empty -> 201 fake id, nothing stored. Rate limit per IP: 5/hour, 20/day.",
+      "body": {
+        "answers": "JSON string: { ownerName, ownerPhone, emergencyName, emergencyPhone, dogName, breed, age, sex: male|female, sterilised: yes|no, signName, confirmTrue: true, ...optional keys (see BACKEND_API_SPEC.md §7.12) }",
+        "website": "string (honeypot, leave empty)",
+        "documents": "0-5 files, image/* (not SVG) or application/pdf, <= 10 MB each"
+      },
+      "response": {
+        "data": {
+          "id": "string",
+          "createdAt": "ISO"
+        }
+      }
+    },
+    {
+      "group": "questionnaires",
+      "method": "GET",
+      "path": "/questionnaires",
+      "roles": [
+        "admin",
+        "staff"
+      ],
+      "query": {
+        "status": "new|reviewed|archived",
+        "search": "dog name, owner name or owner phone"
+      },
+      "response": "List<{ id, status, createdAt, dogName, breed, ownerName, ownerPhone, documentsCount }>"
+    },
+    {
+      "group": "questionnaires",
+      "method": "GET",
+      "path": "/questionnaires/:id",
+      "roles": [
+        "admin",
+        "staff"
+      ],
+      "response": {
+        "data": "Questionnaire: { id, status, answers, documents: [{ id, name, uri, mimeType, size, uploadedAt }], dogId, reviewedBy, reviewedAt, createdAt, updatedAt }"
+      }
+    },
+    {
+      "group": "questionnaires",
+      "method": "PATCH",
+      "path": "/questionnaires/:id",
+      "roles": [
+        "admin"
+      ],
+      "body": {
+        "status": "new|reviewed|archived?",
+        "dogId": "string|null?"
+      },
+      "response": {
+        "data": "Questionnaire"
+      }
     }
   ]
 }

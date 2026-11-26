@@ -18,7 +18,7 @@
 5. [Error codes](#5-error-codes)
 6. [Data models (MongoDB)](#6-data-models-mongodb)
 7. [Endpoints](#7-endpoints)
-   - 7.1 Health · 7.2 Auth · 7.3 Users · 7.4 Dogs · 7.5 Bookings · 7.6 Payments · 7.7 Settings · 7.8 Dashboard · 7.9 Occupancy · 7.10 Billing · 7.11 Uploads
+   - 7.1 Health · 7.2 Auth · 7.3 Users · 7.4 Dogs · 7.5 Bookings · 7.6 Payments · 7.7 Settings · 7.8 Dashboard · 7.9 Occupancy · 7.10 Billing · 7.11 Uploads · 7.12 Questionnaires
 8. [Business rules (exact algorithms)](#8-business-rules-exact-algorithms)
 9. [Auth & security](#9-auth--security)
 10. [Seed data](#10-seed-data)
@@ -135,6 +135,9 @@ Scripts: `dev`, `build`, `start`, `test`, `seed` (drops & re-seeds Phase 1 data)
 | Dashboard, Occupancy | ✓ | ✓ | – |
 | Billing | ✓ | – | – |
 | Uploads | ✓ | – | – |
+| Questionnaires: submit (`POST /questionnaires`) | public | public | public |
+| Questionnaires: read | ✓ | ✓ | – |
+| Questionnaires: update | ✓ | – | – |
 
 - No/invalid token → **401** `UNAUTHORIZED`. Wrong role → **403** `FORBIDDEN`.
 - `inactive` users cannot log in and their tokens must be rejected (401).
@@ -589,6 +592,64 @@ Definitions in §8.7. `from`/`to` echo the query (null if omitted).
 The app then saves `{ kind, name, uri: url, mimeType, size, uploadedAt }` into `dog.documents` via `PATCH /dogs/:id`
 (or inside `POST /dogs`). In the app, `src/lib/attachments.ts → uploadAttachment()` is the single place that will call this.
 
+### 7.12 Questionnaires ("Know Your Dog")
+
+> **Server-first.** The public page `web/know-your-dog/index.html` is served by the API server at `/know-your-dog/`
+> and posts here. The mobile app has **no screen for this yet**; admins and staff read submissions through the API
+> (or Postman) until one is built.
+
+#### `POST /questionnaires` - public (no auth) · `multipart/form-data`
+| Field | Content |
+|---|---|
+| `answers` | JSON string of a flat object (see below) |
+| `website` | honeypot - real users leave it empty. If it is non-empty the server answers `201` with a fake id and stores nothing |
+| `documents` | 0-5 files, `image/*` (not SVG) or `application/pdf`, max 10 MB each |
+
+`answers` keys (whitelisted; unknown keys are dropped; strings are trimmed, empty optional answers removed; max length per
+field 40-2000 characters as on the page):
+- **Required:** `ownerName`, `ownerPhone`, `emergencyName`, `emergencyPhone`, `dogName`, `breed`, `age`,
+  `sex` (`male|female`), `sterilised` (`yes|no`), `signName`, `confirmTrue` (must be `true`).
+  Phones: 7-20 characters of digits, `+`, `-`, spaces.
+- **Optional text:** `address, weight, heatInfo, tickFlea, skinIssues, recentIllness, conditions, medication, allergies, vet,
+  homeDiet, specialFood, avoidFoods, eatingStyle, breedsDislike, fightHistory, biteHistory, boardingBefore, foodGuarding,
+  toyGuarding, placeGuarding, noiseFear, aloneBehaviour, handlingDislikes, escapeRisk, barking, eatsObjects, calmingTips,
+  sleep, toilet, exercise, anythingElse`.
+- **Optional yes/no:** `standardMealOk, extraMeal, ownBowls, bath`. **Dates** (`YYYY-MM-DD`): `rabiesDate,
+  comboVaccineDate, dewormingDate, signDate`.
+- **Social rows:** `with_<key>` = `fine|unsure|not_okay` and `with_<key>_note` (max 300) for
+  `biggerDogs, smallerDogs, maleDogs, femaleDogs, puppies, newPeople, men, women`.
+
+Errors (422 `VALIDATION_ERROR`, message shown on the page), e.g. `"Please enter your name."`,
+`"Please enter a valid phone number for you."`, `"Please choose your dog's sex."`,
+`"Please confirm that your answers are true."`, `"<file> is not a photo or PDF."`, `"<file> is bigger than 10 MB."`,
+`"You can add up to 5 files."`. Rate limit per IP: 5 / hour and 20 / day (`QUESTIONNAIRE_RATE_PER_HOUR` / `_PER_DAY`) -> 429.
+
+Files are stored with the uploads provider under `questionnaires/<yyyy>/<mm>/<uuid>-<safeName>`.
+No raw IP is stored (HMAC-SHA256 only); the user agent is kept (truncated) for spam review but never returned.
+
+`201 { "data": { "id": "...", "createdAt": "<ISO>" } }`
+
+#### `GET /questionnaires` - admin, staff
+Query: `status` (`new|reviewed|archived`), `search` (case-insensitive substring of dog name, owner name or owner phone),
+`page`, `limit`. Newest first. List item:
+```json
+{ "id": "...", "status": "new", "createdAt": "<ISO>", "dogName": "Kaju", "breed": "Indie",
+  "ownerName": "Asha Rao", "ownerPhone": "+91 98765 43210", "documentsCount": 1 }
+```
+
+#### `GET /questionnaires/:id` - admin, staff -> `200 { data: Questionnaire }` · 404 `"Questionnaire not found"`
+```json
+{ "id": "...", "status": "new", "answers": { "dogName": "Kaju", "...": "..." },
+  "documents": [ { "id": "...", "name": "vaccines.pdf", "uri": "https://.../uploads/questionnaires/...",
+                   "mimeType": "application/pdf", "size": 240000, "uploadedAt": "<ISO>" } ],
+  "dogId": null, "reviewedBy": null, "reviewedAt": null, "createdAt": "<ISO>", "updatedAt": "<ISO>" }
+```
+
+#### `PATCH /questionnaires/:id` - admin
+Body (all optional): `status` (`new|reviewed|archived`; invalid -> `"Invalid status."`), `dogId` (existing dog id, or `null`
+to unlink; unknown -> 422 `"Choose an existing dog."`). Moving away from `new` sets `reviewedBy`/`reviewedAt`; moving back
+to `new` clears them. `200 { data: Questionnaire }`
+
 ---
 
 ## 8. Business rules (exact algorithms)
@@ -784,6 +845,10 @@ The app's axios client sends `Authorization: Bearer <accessToken>`, expects the 
 | 25 | GET | /admin/occupancy | admin, staff | 200 OccupancyCalendar |
 | 26 | GET | /admin/billing | admin | 200 BillingSummary |
 | 27 | POST | /uploads | admin | 201 { url, name, mimeType, size } |
+| 28 | POST | /questionnaires | public (rate-limited) | 201 { id, createdAt } |
+| 29 | GET | /questionnaires | admin, staff | 200 List<QuestionnaireListItem> |
+| 30 | GET | /questionnaires/:id | admin, staff | 200 Questionnaire |
+| 31 | PATCH | /questionnaires/:id | admin | 200 Questionnaire |
 
 **Prompt to give the backend agent:**
 > Build the Node.js + TypeScript + Express + MongoDB (Mongoose) REST API described in `BACKEND_API_SPEC.md`

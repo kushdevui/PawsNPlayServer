@@ -57,6 +57,16 @@ Dates: ISO-8601 UTC strings. The app sends/receives UTC and shows local time.
 `POST /uploads` multipart `file` (image/* or application/pdf, ≤ 10 MB) -> `{ data: { url, mimeType, size, name } }`.
 The app then saves the returned `url` in `dog.documents[].uri`. In mock mode the local file URI is stored instead.
 
+## Questionnaires ("Know Your Dog", server-first - no app screen yet)
+| Method | Path | Roles | Notes |
+|---|---|---|---|
+| POST | /questionnaires | public | multipart: `answers` (JSON string), `website` (honeypot), `documents` (0-5 images/PDF, ≤ 10 MB); rate-limited per IP; -> `201 { id, createdAt }` |
+| GET | /questionnaires | admin, staff | `status` (new/reviewed/archived), `search` (dog name, owner name, phone); newest first |
+| GET | /questionnaires/:id | admin, staff | full answers + documents |
+| PATCH | /questionnaires/:id | admin | `status`, `dogId` (existing dog or null) |
+
+Full rules: `docs/BACKEND_API_SPEC.md` §7.12.
+
 ## Booking money fields (derived by server)
 - `amountPaid` = Σ advances + payments − refunds
 - `balanceDue` = (cancelled ? 0 : totalAmount) − amountPaid (negative = to refund)

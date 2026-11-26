@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Know Your Dog Questionnaire | Paws N' Play</title>
+  <meta name="description" content="Fill this once for each dog when you book a stay at Paws N' Play. It takes about five minutes." />
+  <meta name="robots" content="noindex" />
+  <meta name="theme-color" content="#FFFFFF" />
+  <link rel="icon" href="/faqs/logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --pink50: #FAF6F9; --pink100: #F3EBF2; --pink200: #E4D3E2; --pink400: #C2A1BE;
+      --pink600: #8E6A8A; --pink700: #6F5170;
+      --ink900: #262727; --ink700: #3F4040; --ink500: #6B6C6C; --ink300: #C7C8C8; --ink200: #E3E4E4;
+      --white: #FFFFFF; --red600: #C62828; --red50: #FDECEC; --green600: #2E7D32; --green50: #E8F5E9;
+      --radius: 16px;
+      --display: 'Fredoka', 'Nunito', system-ui, sans-serif;
+      --body: 'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: var(--body); font-size: 17px; line-height: 1.55; color: var(--ink900); background: var(--white); -webkit-font-smoothing: antialiased; }
+    a { color: var(--pink700); }
+    .wrap { width: min(760px, 100% - 32px); margin-inline: auto; }
+    :focus-visible { outline: 3px solid var(--pink400); outline-offset: 2px; }
+
+    header.top { position: sticky; top: 0; z-index: 10; background: rgba(255,255,255,.94); backdrop-filter: blur(10px); border-bottom: 1px solid var(--ink200); }
+    header.top .wrap { display: flex; align-items: center; justify-content: space-between; height: 60px; gap: 12px; }
+    .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink900); }
+    .brand img { width: 36px; height: 40px; object-fit: contain; }
+    .brand span { font-family: var(--display); font-weight: 700; font-size: 19px; }
+    .progress { flex: 1; max-width: 220px; height: 8px; background: var(--pink100); border-radius: 99px; overflow: hidden; }
+    .progress i { display: block; height: 100%; width: 0; background: var(--pink400); transition: width .2s ease; }
+
+    .hero { text-align: center; padding: 40px 0 10px; background: radial-gradient(circle at 50% 0, var(--pink100) 0, transparent 60%); }
+    .hero img { width: 120px; height: auto; }
+    .hero h1 { font-family: var(--display); font-weight: 700; font-size: clamp(30px, 5.5vw, 44px); line-height: 1.1; margin: 14px 0 10px; }
+    .hero p { color: var(--ink700); margin: 0 auto 8px; max-width: 600px; }
+    .hero .pill { display: inline-block; margin-top: 8px; background: var(--pink100); color: var(--pink700); font-weight: 700; font-size: 14px; padding: 5px 12px; border-radius: 99px; }
+
+    fieldset { border: 1px solid var(--ink200); border-radius: 22px; padding: 22px 20px 8px; margin: 22px 0; min-width: 0; }
+    legend { font-family: var(--display); font-weight: 600; font-size: 23px; padding: 0 8px; margin-left: -8px; display: flex; align-items: center; gap: 10px; }
+    legend::before { content: attr(data-n); display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--ink900); color: var(--white); font-size: 15px; font-family: var(--body); font-weight: 700; }
+    .section-note { margin: -4px 0 16px; color: var(--ink500); font-size: 15px; }
+    .section-note strong { color: var(--ink700); }
+
+    .field { margin-bottom: 18px; }
+    .field > label, .field > .label { display: block; font-weight: 700; margin-bottom: 6px; }
+    .req { color: var(--pink600); }
+    .hint { display: block; font-weight: 400; color: var(--ink500); font-size: 14px; margin-top: 2px; }
+    input[type=text], input[type=tel], input[type=date], input[type=number], textarea, select {
+      width: 100%; font: inherit; font-size: 16px; color: var(--ink900);
+      padding: 12px 14px; border: 2px solid var(--ink200); border-radius: 12px; background: var(--white);
+    }
+    textarea { min-height: 84px; resize: vertical; }
+    input:focus, textarea:focus, select:focus { border-color: var(--pink400); outline: none; }
+    .invalid input, .invalid textarea, .invalid .choices { border-color: var(--red600) !important; }
+    .err { display: none; color: var(--red600); font-size: 14px; font-weight: 600; margin-top: 4px; }
+    .invalid .err { display: block; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; align-items: end; }
+
+    .choices { display: flex; flex-wrap: wrap; gap: 8px; border: 2px solid transparent; border-radius: 14px; }
+    .choices label { position: relative; }
+    .choices input { position: absolute; opacity: 0; pointer-events: none; }
+    .choices span { display: inline-block; padding: 8px 16px; border: 2px solid var(--ink200); border-radius: 99px; font-weight: 700; font-size: 15px; cursor: pointer; user-select: none; background: var(--white); }
+    .choices input:checked + span { background: var(--ink900); border-color: var(--ink900); color: var(--white); }
+    .choices input:focus-visible + span { outline: 3px solid var(--pink400); outline-offset: 2px; }
+
+    .rate { border-top: 1px solid var(--ink200); padding: 14px 0 12px; }
+    .rate:first-of-type { border-top: 0; padding-top: 0; }
+    .rate .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .rate .q { font-weight: 700; }
+    .rate .choices span { padding: 6px 12px; font-size: 14px; }
+    .rate .choices input[value=fine]:checked + span { background: var(--green600); border-color: var(--green600); }
+    .rate .choices input[value=not_okay]:checked + span { background: var(--red600); border-color: var(--red600); }
+    .rate .choices input[value=unsure]:checked + span { background: var(--pink600); border-color: var(--pink600); }
+    .rate input[type=text] { margin-top: 8px; padding: 9px 12px; font-size: 15px; }
+
+    .drop { border: 2px dashed var(--pink400); border-radius: 16px; background: var(--pink50); padding: 18px; text-align: center; cursor: pointer; }
+    .drop strong { display: block; }
+    .drop small { color: var(--ink500); }
+    .files { list-style: none; padding: 0; margin: 10px 0 0; }
+    .files li { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: var(--white); border: 1px solid var(--ink200); border-radius: 12px; padding: 8px 12px; margin-bottom: 6px; font-size: 15px; }
+    .files button { border: 0; background: none; color: var(--red600); font-weight: 700; cursor: pointer; font: inherit; font-size: 14px; }
+
+    .confirm { display: flex; gap: 12px; align-items: flex-start; font-weight: 600; }
+    .confirm input { width: 22px; height: 22px; margin-top: 2px; accent-color: var(--ink900); flex: none; }
+
+    .submit-bar { margin: 26px 0 50px; text-align: center; }
+    button.primary { font: inherit; font-weight: 700; font-size: 18px; color: var(--white); background: var(--ink900); border: 0; border-radius: 99px; padding: 15px 34px; cursor: pointer; min-width: 240px; }
+    button.primary[disabled] { opacity: .6; cursor: wait; }
+    .form-error { display: none; background: var(--red50); color: var(--red600); border-radius: 14px; padding: 12px 16px; font-weight: 600; margin-bottom: 14px; }
+    .hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+
+    .done { display: none; text-align: center; padding: 60px 0 80px; }
+    .done .tick { width: 72px; height: 72px; border-radius: 50%; background: var(--green50); display: grid; place-items: center; margin: 0 auto 16px; }
+    .done h2 { font-family: var(--display); font-size: 32px; margin: 0 0 8px; }
+    .done p { color: var(--ink700); margin: 0 auto 10px; max-width: 520px; }
+    .btn { display: inline-block; margin-top: 10px; text-decoration: none; font-weight: 700; padding: 11px 20px; border-radius: 99px; border: 2px solid var(--ink900); color: var(--ink900); }
+
+    @media (max-width: 560px) {
+      body { font-size: 16px; }
+      .grid2 { grid-template-columns: 1fr; }
+      fieldset { padding: 18px 14px 4px; }
+      .rate .row { align-items: flex-start; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="/faqs"><img src="/faqs/logo.png" alt="" width="36" height="40" /><span>Paws N' Play</span></a>
+      <div class="progress" aria-hidden="true"><i id="bar"></i></div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div id="formView">
+      <div class="hero">
+        <img src="/faqs/logo.png" alt="Paws N' Play logo" width="120" height="135" />
+        <h1>Know Your Dog</h1>
+        <p>Please fill this once for each dog when you book. The more we know about your dog, the better we can plan their room, their playmates and their day, and the lower the chance of an accident.</p>
+        <p>There are no wrong answers, and nothing here will get your dog turned away without a conversation first.</p>
+        <span class="pill">About 5 minutes</span>
+      </div>
+
+      <form id="kyd" novalidate>
+        <div class="hp" aria-hidden="true"><label>Leave this empty <input type="text" name="website" tabindex="-1" autocomplete="off" /></label></div>
+
+        <fieldset>
+          <legend data-n="1">You and your emergency contact</legend>
+          <div class="field"><label for="ownerName">Your name <span class="req">*</span></label><input id="ownerName" name="ownerName" type="text" autocomplete="name" required maxlength="100" /><div class="err">Please enter your name.</div></div>
+          <div class="field"><label for="ownerPhone">Phone and WhatsApp number <span class="req">*</span></label><input id="ownerPhone" name="ownerPhone" type="tel" autocomplete="tel" required maxlength="20" inputmode="tel" /><div class="err">Please enter a phone number we can reach you on.</div></div>
+          <div class="field"><label for="address">Home address</label><textarea id="address" name="address" autocomplete="street-address" maxlength="500"></textarea></div>
+          <div class="field"><label for="emergencyName">Emergency contact name and relation <span class="req">*</span><span class="hint">Someone who can make decisions and collect your dog if we can't reach you.</span></label><input id="emergencyName" name="emergencyName" type="text" required maxlength="100" placeholder="e.g. Riya Sharma, sister" /><div class="err">Please add an emergency contact.</div></div>
+          <div class="field"><label for="emergencyPhone">Emergency contact phone <span class="req">*</span></label><input id="emergencyPhone" name="emergencyPhone" type="tel" required maxlength="20" inputmode="tel" /><div class="err">Please add their phone number.</div></div>
+        </fieldset>
+
+        <fieldset>
+          <legend data-n="2">About your dog</legend>
+          <div class="grid2">
+            <div class="field"><label for="dogName">Dog's name <span class="req">*</span></label><input id="dogName" name="dogName" type="text" required maxlength="60" /><div class="err">Please enter your dog's name.</div></div>
+            <div class="field"><label for="breed">Breed <span class="req">*</span><span class="hint">Or Indie / mixed</span></label><input id="breed" name="breed" type="text" required maxlength="60" /><div class="err">Please enter the breed (or Indie / mixed).</div></div>
+            <div class="field"><label for="age">Age <span class="req">*</span></label><input id="age" name="age" type="text" required maxlength="40" placeholder="e.g. 3 years" /><div class="err">Please enter your dog's age.</div></div>
+            <div class="field"><label for="weight">Approximate weight</label><input id="weight" name="weight" type="text" maxlength="40" placeholder="e.g. 18 kg" /></div>
+          </div>
+          <div class="field"><span class="label">Sex <span class="req">*</span></span><div class="choices" data-required>
+            <label><input type="radio" name="sex" value="male" /><span>Male</span></label>
+            <label><input type="radio" name="sex" value="female" /><span>Female</span></label>
+          </div><div class="err">Please choose one.</div></div>
+          <div class="field"><span class="label">Sterilised? <span class="req">*</span></span><div class="choices" data-required>
+            <label><input type="radio" name="sterilised" value="yes" /><span>Yes</span></label>
+            <label><input type="radio" name="sterilised" value="no" /><span>No</span></label>
+          </div><div class="err">Please choose one.</div></div>
+          <div class="field" id="heatField" hidden><label for="heatInfo">Date of her last heat, and is she due during this stay?</label><textarea id="heatInfo" name="heatInfo" maxlength="500"></textarea></div>
+        </fieldset>
+
+        <fieldset>
+          <legend data-n="3">Health</legend>
+          <p class="section-note">Please also send us a photo or PDF of the <strong>vaccination and deworming record</strong> below.</p>
+          <div class="grid2">
+            <div class="field"><label for="rabiesDate">Last anti-rabies vaccination</label><input id="rabiesDate" name="rabiesDate" type="date" /></div>
+            <div class="field"><label for="comboVaccineDate">Last combined vaccination<span class="hint">7-in-1 or similar</span></label><input id="comboVaccineDate" name="comboVaccineDate" type="date" /></div>
+            <div class="field"><label for="dewormingDate">Last deworming</label><input id="dewormingDate" name="dewormingDate" type="date" /></div>
+          </div>
+          <div class="field"><label for="tickFlea">Tick and flea prevention used, and when<span class="hint">Spot-on / chewable / collar / tick bath / none</span></label><input id="tickFlea" name="tickFlea" type="text" maxlength="200" /></div>
+          <div class="field"><label for="skinIssues">Any ticks, fleas or skin problems right now?</label><input id="skinIssues" name="skinIssues" type="text" maxlength="300" /></div>
+          <div class="field"><label for="recentIllness">Any illness in the past week?<span class="hint">Cough, vomiting, loose motions</span></label><input id="recentIllness" name="recentIllness" type="text" maxlength="300" /></div>
+          <div class="field"><label for="conditions">Any medical conditions, past surgeries or injuries we should know about?</label><textarea id="conditions" name="conditions" maxlength="1000"></textarea></div>
+          <div class="field"><label for="medication">Any medication?<span class="hint">Name, dose and timing</span></label><textarea id="medication" name="medication" maxlength="1000"></textarea></div>
+          <div class="field"><label for="allergies">Any allergies?<span class="hint">Food, medicine, anything else</span></label><input id="allergies" name="allergies" type="text" maxlength="300" /></div>
+          <div class="field"><label for="vet">Your regular vet's name and phone number</label><input id="vet" name="vet" type="text" maxlength="200" /></div>
+          <div class="field">
+            <span class="label">Vaccination and deworming records</span>
+            <label class="drop" for="documents"><strong>Add photos or PDFs</strong><small>Up to 5 files, 10 MB each</small></label>
+            <input id="documents" type="file" accept="image/*,application/pdf" multiple hidden />
+            <ul class="files" id="fileList"></ul>
+            <div class="err" id="fileErr"></div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend data-n="4">Food and water</legend>
+          <p class="section-note">Our standard meals are <strong>rice and chicken cooked with a seasonal vegetable, twice a day, plus treats</strong>.</p>
+          <div class="field"><label for="homeDiet">What does your dog eat at home, and how many meals a day?</label><textarea id="homeDiet" name="homeDiet" maxlength="500"></textarea></div>
+          <div class="field"><span class="label">Is our standard meal fine for your dog?</span><div class="choices">
+            <label><input type="radio" name="standardMealOk" value="yes" /><span>Yes</span></label>
+            <label><input type="radio" name="standardMealOk" value="no" /><span>No</span></label>
+          </div></div>
+          <div class="field"><label for="specialFood">Will you send special food or kibble? If yes, how much and when should we give it?</label><textarea id="specialFood" name="specialFood" maxlength="500"></textarea></div>
+          <div class="field"><span class="label">Does your dog need an extra meal?<span class="hint">Chargeable at ₹150 per meal</span></span><div class="choices">
+            <label><input type="radio" name="extraMeal" value="yes" /><span>Yes</span></label>
+            <label><input type="radio" name="extraMeal" value="no" /><span>No</span></label>
+          </div></div>
+          <div class="field"><label for="avoidFoods">Any foods or treats to avoid?</label><input id="avoidFoods" name="avoidFoods" type="text" maxlength="300" /></div>
+          <div class="field"><span class="label">Do you want separate water or food bowls for your dog?<span class="hint">The bowls are to be provided by you</span></span><div class="choices">
+            <label><input type="radio" name="ownBowls" value="yes" /><span>Yes</span></label>
+            <label><input type="radio" name="ownBowls" value="no" /><span>No</span></label>
+          </div></div>
+          <div class="field"><label for="eatingStyle">Is your dog a fussy or slow eater, or do they eat too fast?</label><input id="eatingStyle" name="eatingStyle" type="text" maxlength="300" /></div>
+        </fieldset>
+
+        <fieldset>
+          <legend data-n="5">With other dogs and with people</legend>
+          <p class="section-note">For each one, tell us: fine, unsure or not okay. Add a line if there is a story behind it.</p>
+          <div id="rates"></div>
+          <div class="field" style="margin-top:14px"><label for="breedsDislike">Any particular breed or type of dog they don't get along with?</label><input id="breedsDislike" name="breedsDislike" type="text" maxlength="300" /></div>
+          <div class="field"><label for="fightHistory">Has your dog ever been in a fight with another dog? What happened?</label><textarea id="fightHistory" name="fightHistory" maxlength="1000"></textarea></div>
+          <div class="field"><label for="biteHistory">Has your dog ever bitten or snapped at a person? What happened?</label><textarea id="biteHistory" name="biteHistory" maxlength="1000"></textarea></div>
+          <div class="field"><label for="boardingBefore">Has your dog stayed at a boarding or daycare before? How did it go?</label><textarea id="boardingBefore" name="boardingBefore" maxlength="1000"></textarea></div>
+        </fieldset>
+
+        <fieldset>
+          <legend data-n="6">Triggers and quirks</legend>
+          <p class="section-note">Tell us anything that sets your dog off, however small it seems.</p>
+          <div class="field"><label for="foodGuarding">Does your dog guard food or their bowl from other dogs or people?</label><input id="foodGuarding" name="foodGuarding" type="text" maxlength="300" /></div>
+          <div class="field"><label for="toyGuarding">Does your dog guard toys, bones or chews?</label><input id="toyGuarding" name="toyGuarding" type="text" maxlength="300" /></div>
+          <div class="field"><label for="placeGuarding">Does your dog guard their bed, a spot, or a favourite person?</label><input id="placeGuarding" name="placeGuarding" type="text" maxlength="300" /></div>
+          <div class="field"><label for="noiseFear">Is your dog scared of loud noises?<span class="hint">Thunder, crackers, vehicles</span></label><input id="noiseFear" name="noiseFear" type="text" maxlength="300" /></div>
+          <div class="field"><label for="aloneBehaviour">How is your dog when left alone or away from you?</label><input id="aloneBehaviour" name="aloneBehaviour" type="text" maxlength="300" /></div>
+          <div class="field"><label for="handlingDislikes">Is there any kind of touch or handling your dog dislikes?<span class="hint">Paws, ears, tail, being picked up, bathing, being woken</span></label><input id="handlingDislikes" name="handlingDislikes" type="text" maxlength="300" /></div>
+          <div class="field"><label for="escapeRisk">Does your dog try to escape?<span class="hint">Jumping walls, digging, bolting through open doors or gates</span></label><input id="escapeRisk" name="escapeRisk" type="text" maxlength="300" /></div>
+          <div class="field"><label for="barking">Does your dog bark a lot, and at what?</label><input id="barking" name="barking" type="text" maxlength="300" /></div>
+          <div class="field"><label for="eatsObjects">Does your dog eat things they shouldn't?<span class="hint">Stones, socks, plastic</span></label><input id="eatsObjects" name="eatsObjects" type="text" maxlength="300" /></div>
+          <div class="field"><label for="calmingTips">What calms your dog down when they are stressed?</label><input id="calmingTips" name="calmingTips" type="text" maxlength="300" /></div>
+        </fieldset>
+
+        <fieldset>
+          <legend data-n="7">Routine and extras</legend>
+          <div class="field"><label for="sleep">Where does your dog sleep at home?<span class="hint">Own bed, your bed, floor, crate</span></label><input id="sleep" name="sleep" type="text" maxlength="200" /></div>
+          <div class="field"><label for="toilet">When and where does your dog usually pee and poop?<span class="hint">On walks, in a garden, on a schedule</span></label><input id="toilet" name="toilet" type="text" maxlength="300" /></div>
+          <div class="field"><label for="exercise">How much exercise is your dog used to in a day?</label><input id="exercise" name="exercise" type="text" maxlength="200" /></div>
+          <div class="field"><span class="label">Would you like a bath and dry added to the stay?<span class="hint">Chargeable at ₹750</span></span><div class="choices">
+            <label><input type="radio" name="bath" value="yes" /><span>Yes</span></label>
+            <label><input type="radio" name="bath" value="no" /><span>No</span></label>
+          </div></div>
+          <div class="field"><label for="anythingElse">Anything else you want us to know about your dog?</label><textarea id="anythingElse" name="anythingElse" maxlength="2000"></textarea></div>
+        </fieldset>
+
+        <fieldset>
+          <legend data-n="8">Confirm</legend>
+          <div class="field"><label class="confirm"><input type="checkbox" id="confirmTrue" name="confirmTrue" /> I confirm that everything above is complete and true to the best of my knowledge.</label><div class="err">Please tick to confirm.</div></div>
+          <div class="grid2">
+            <div class="field"><label for="signName">Your name <span class="req">*</span></label><input id="signName" name="signName" type="text" required maxlength="100" /><div class="err">Please type your name.</div></div>
+            <div class="field"><label for="signDate">Date</label><input id="signDate" name="signDate" type="date" /></div>
+          </div>
+        </fieldset>
+
+        <div class="submit-bar">
+          <div class="form-error" id="formError" role="alert"></div>
+          <button class="primary" type="submit" id="submitBtn">Send to Paws N' Play</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="done" id="doneView" role="status">
+      <div class="tick"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#2E7D32" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+      <h2>Thank you!</h2>
+      <p id="doneText">We've got your answers. Our team will go through them before the stay and call you if we have any questions.</p>
+      <a class="btn" href="/know-your-dog" onclick="location.reload();return false;">Fill in for another dog</a>
+      <a class="btn" href="/faqs">Read our FAQs</a>
+    </div>
+  </main>
+
+  <script>
+  (function () {
+    var API = '/api/v1/questionnaires';
+    var MAX_FILES = 5, MAX_SIZE = 10 * 1024 * 1024;
+    var form = document.getElementById('kyd');
+
+    // "With other dogs and with people" rows
+    var RATES = [
+      ['biggerDogs', 'Dogs bigger than them'], ['smallerDogs', 'Dogs smaller than them'],
+      ['maleDogs', 'Male dogs'], ['femaleDogs', 'Female dogs'],
+      ['puppies', 'Puppies or very playful dogs'], ['newPeople', 'New people'],
+      ['men', 'Men'], ['women', 'Women']
+    ];
+    var rates = document.getElementById('rates');
+    RATES.forEach(function (r) {
+      var key = r[0], div = document.createElement('div');
+      div.className = 'rate';
+      div.innerHTML =
+        '<div class="row"><span class="q" id="q_' + key + '">' + r[1] + '</span>' +
+        '<div class="choices" role="radiogroup" aria-labelledby="q_' + key + '">' +
+        ['fine:Fine', 'unsure:Unsure', 'not_okay:Not okay'].map(function (o) {
+          var p = o.split(':');
+          return '<label><input type="radio" name="with_' + key + '" value="' + p[0] + '" /><span>' + p[1] + '</span></label>';
+        }).join('') + '</div></div>' +
+        '<input type="text" name="with_' + key + '_note" maxlength="300" placeholder="Story behind it (optional)" aria-label="' + r[1] + ': details" />';
+      rates.appendChild(div);
+    });
+
+    // Today's date as default signature date
+    var d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    document.getElementById('signDate').value = d.toISOString().slice(0, 10);
+
+    // Heat question only for unsterilised females
+    function toggleHeat() {
+      var sex = form.querySelector('input[name=sex]:checked');
+      var st = form.querySelector('input[name=sterilised]:checked');
+      document.getElementById('heatField').hidden = !(sex && sex.value === 'female' && st && st.value === 'no');
+    }
+    form.addEventListener('change', function (e) { if (e.target.name === 'sex' || e.target.name === 'sterilised') toggleHeat(); updateProgress(); });
+    form.addEventListener('input', updateProgress);
+
+    // Progress bar = share of questions answered
+    function updateProgress() {
+      var names = {}, done = 0, total = 0;
+      Array.prototype.forEach.call(form.elements, function (el) {
+        if (!el.name || el.name === 'website' || el.closest('[hidden]')) return;
+        if (names[el.name]) return; names[el.name] = true; total++;
+        if (el.type === 'radio') { if (form.querySelector('input[name="' + el.name + '"]:checked')) done++; }
+        else if (el.type === 'checkbox') { if (el.checked) done++; }
+        else if (el.value.trim()) done++;
+      });
+      document.getElementById('bar').style.width = (total ? Math.round(done / total * 100) : 0) + '%';
+    }
+
+    // Files
+    var files = [], input = document.getElementById('documents'), list = document.getElementById('fileList'), fileErr = document.getElementById('fileErr');
+    function renderFiles() {
+      list.innerHTML = '';
+      files.forEach(function (f, i) {
+        var li = document.createElement('li');
+        li.innerHTML = '<span></span><button type="button">Remove</button>';
+        li.firstChild.textContent = f.name + ' (' + Math.max(1, Math.round(f.size / 1024)) + ' KB)';
+        li.lastChild.onclick = function () { files.splice(i, 1); renderFiles(); };
+        list.appendChild(li);
+      });
+    }
+    input.addEventListener('change', function () {
+      var msg = '';
+      Array.prototype.forEach.call(input.files, function (f) {
+        if (!/^image\//.test(f.type) && f.type !== 'application/pdf') { msg = f.name + ' is not a photo or PDF.'; return; }
+        if (f.size > MAX_SIZE) { msg = f.name + ' is bigger than 10 MB.'; return; }
+        if (files.length >= MAX_FILES) { msg = 'You can add up to ' + MAX_FILES + ' files.'; return; }
+        files.push(f);
+      });
+      fileErr.textContent = msg; fileErr.parentNode.classList.toggle('invalid', !!msg);
+      input.value = ''; renderFiles();
+    });
+
+    // Validation
+    function check() {
+      var first = null;
+      form.querySelectorAll('.field').forEach(function (f) { f.classList.remove('invalid'); });
+      form.querySelectorAll('[required]').forEach(function (el) {
+        if (!el.value.trim()) { el.closest('.field').classList.add('invalid'); first = first || el; }
+      });
+      form.querySelectorAll('.choices[data-required]').forEach(function (c) {
+        if (!c.querySelector('input:checked')) { c.closest('.field').classList.add('invalid'); first = first || c.querySelector('input'); }
+      });
+      var cb = document.getElementById('confirmTrue');
+      if (!cb.checked) { cb.closest('.field').classList.add('invalid'); first = first || cb; }
+      if (first) { first.closest('.field').scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(function () { first.focus({ preventScroll: true }); }, 300); }
+      return !first;
+    }
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var errBox = document.getElementById('formError');
+      errBox.style.display = 'none';
+      if (!check()) return;
+
+      var answers = {};
+      Array.prototype.forEach.call(form.elements, function (el) {
+        if (!el.name || el.name === 'website' || el.closest('[hidden]')) return;
+        if (el.type === 'radio') { if (el.checked) answers[el.name] = el.value; }
+        else if (el.type === 'checkbox') answers[el.name] = el.checked;
+        else if (el.value.trim()) answers[el.name] = el.value.trim();
+      });
+      var body = new FormData();
+      body.append('answers', JSON.stringify(answers));
+      body.append('website', form.website.value);
+      files.forEach(function (f) { body.append('documents', f, f.name); });
+
+      var btn = document.getElementById('submitBtn');
+      btn.disabled = true; btn.textContent = 'Sending…';
+      fetch(API, { method: 'POST', body: body })
+        .then(function (res) { return res.json().catch(function () { return {}; }).then(function (j) { return { ok: res.ok, json: j }; }); })
+        .then(function (r) {
+          if (!r.ok) throw new Error((r.json && r.json.error && r.json.error.message) || 'Something went wrong. Please try again.');
+          document.getElementById('formView').style.display = 'none';
+          document.getElementById('doneView').style.display = 'block';
+          document.getElementById('doneText').textContent = "We've got your answers for " + answers.dogName + ". Our team will go through them before the stay and call you if we have any questions.";
+          document.getElementById('bar').style.width = '100%';
+          window.scrollTo(0, 0);
+        })
+        .catch(function (err) {
+          errBox.textContent = err.message === 'Failed to fetch' ? "We couldn't reach our server. Check your internet connection and try again." : err.message;
+          errBox.style.display = 'block';
+          btn.disabled = false; btn.textContent = "Send to Paws N' Play";
+        });
+    });
+
+    // Warn before leaving with unsent answers
+    window.addEventListener('beforeunload', function (e) {
+      if (document.getElementById('doneView').style.display === 'block') return;
+      var bar = document.getElementById('bar').style.width;
+      if (bar && bar !== '0%') { e.preventDefault(); e.returnValue = ''; }
+    });
+    updateProgress();
+  })();
+  </script>
+</body>
+</html>

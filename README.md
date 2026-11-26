@@ -5,7 +5,7 @@ Node.js REST API for **Paws N' Play**, a **dog boarding** facility. The mobile a
 capacity, payments and billing. Roles: **admin** (full access), **staff** (read + check-in/out) and
 **user** (customer; only auth and `/me` for now).
 
-**The contract is [`docs/BACKEND_API_SPEC.md`](docs/BACKEND_API_SPEC.md)**: models, all 27 routes, error codes,
+**The contract is [`docs/BACKEND_API_SPEC.md`](docs/BACKEND_API_SPEC.md)**: models, all routes (27 core + 4 questionnaire routes), error codes,
 business rules (§8) and acceptance tests (§11). [`docs/api-contract.md`](docs/api-contract.md) and
 [`docs/endpoints.json`](docs/endpoints.json) are mirrored from the app.
 
@@ -94,6 +94,19 @@ curl -s -X POST $API/uploads -H "$(H $ADMIN)" -F "file=@card.pdf;type=applicatio
 ```
 Access tokens last 15 minutes. Get a new one with `POST /auth/refresh` and the body `{"refreshToken":"..."}`.
 
+### "Know Your Dog" questionnaire
+`web/know-your-dog/index.html` is a public page, served at `/know-your-dog/` on the EC2 setup. Owners use it to send
+their dog's details before a stay.
+- It posts `multipart/form-data` to the public `POST /api/v1/questionnaires`: `answers` (a JSON string), `website`
+  (a honeypot) and up to 5 photo/PDF `documents`.
+- Submissions are rate-limited per IP (`QUESTIONNAIRE_RATE_PER_HOUR` = 5, `QUESTIONNAIRE_RATE_PER_DAY` = 20).
+- Files are stored under `uploads/questionnaires/`.
+- Admins and staff read submissions with `GET /api/v1/questionnaires` and `GET /api/v1/questionnaires/:id`. Admins mark
+  them reviewed or link a dog with `PATCH`. The app has no screen for this yet; spec §7.12 has the details.
+```sh
+curl -s "$API/questionnaires?status=new" -H "$(H $ADMIN)" | jq '.data[] | {dogName, ownerName, ownerPhone}'
+```
+
 ### Postman
 Import [`docs/PawsNPlay.postman_collection.json`](docs/PawsNPlay.postman_collection.json) and run **Login as admin
 (Kush)** or **Login as staff (Neha)** first. The login test scripts save `accessToken` and `refreshToken`.
@@ -119,6 +132,36 @@ In PawsNPlayRender's `.env`, set:
 
 On a phone, use the LAN URL that `npm run dev` prints, not `localhost`.
 
+## Deploy to EC2 with your domain
+One instance serves everything through Nginx:
+
+| Path | Served by |
+|---|---|
+| `/api/v1/*`, `/uploads/*` | the API (PM2, `127.0.0.1:4000`) |
+| `/faqs/` | the FAQ page from `web/faqs/` (any `web/<page>/index.html` is served at `/<page>/`) |
+| `/` | redirects to `/faqs/` |
+| everything else | the Expo web build of the app, e.g. `/login` and `/admin` |
+
+1. **DNS** at your registrar: create an `A` record for `@` and another for `www`, both pointing to the instance's
+   public IP. Use an Elastic IP so the address survives a stop/start.
+2. **Security group**: allow inbound `22` (SSH, ideally from your IP only), `80` and `443` from anywhere.
+3. **MongoDB Atlas -> Network Access**: add the instance's public IP.
+4. **On the instance** (Ubuntu or Amazon Linux 2023, as `ubuntu` / `ec2-user`):
+   ```sh
+   bash <(curl -fsSL https://raw.githubusercontent.com/kushdevui/PawsNPlayServer/main/scripts/deploy-ec2.sh)
+   ```
+   - The first run asks for `MONGODB_URI`, the domain (default `pawsnplaywithme.com`; type `none` for IP-only) and
+     an optional email for certificate notices. The domain is remembered in `~/.pawsnplay-deploy`.
+   - To skip the questions: `DOMAIN=pawsnplaywithme.com CERT_EMAIL=you@example.com MONGODB_URI=... bash <(curl ...)`.
+   - The script also builds the app from the `feat/admin-boarding` branch (override with `APP_BRANCH=...`).
+     `EXPO_PUBLIC_API_URL` points at this server.
+   - If the domain already points to the instance, it gets a free Let's Encrypt certificate, which renews
+     automatically and redirects HTTP to HTTPS. Otherwise it prints the DNS records to create and serves plain
+     HTTP until you run it again.
+   - Re-run the same command to update. `.env` is never overwritten; only `PUBLIC_BASE_URL` changes from
+     `http://<ip>` to `https://<domain>` once HTTPS works.
+5. **Phone app**: set `EXPO_PUBLIC_API_URL=https://pawsnplaywithme.com/api/v1`.
+
 ## Project layout
 ```
 src/
@@ -134,6 +177,7 @@ src/
     settings/                    # single settings document + facility lock (spec §8.2 concurrency)
     admin/                       # dashboard, occupancy calendar, billing
     uploads/                     # POST /uploads (multer) + storage providers
+    questionnaires/              # public "Know Your Dog" submissions + admin/staff review
 scripts/seed.ts                  # npm run seed
 seed/                            # copy of PawsNPlayRender/mock/data/{users,dogs,bookings,settings}.json
 tests/                           # Vitest + Supertest

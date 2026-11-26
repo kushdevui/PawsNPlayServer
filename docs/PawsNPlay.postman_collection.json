@@ -42,6 +42,10 @@
     {
       "key": "paymentId",
       "value": ""
+    },
+    {
+      "key": "questionnaireId",
+      "value": ""
     }
   ],
   "item": [
@@ -1140,6 +1144,162 @@
               ]
             },
             "description": "multipart/form-data, field `file`: image/* or application/pdf, max 10 MB. Pick a file in the Body tab. Then PATCH /dogs/{{dogId}} with documents: [{ kind, name, uri: <url>, mimeType, size }]."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Questionnaires",
+      "item": [
+        {
+          "name": "Submit questionnaire (public)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "answers",
+                  "type": "text",
+                  "value": "{\"ownerName\": \"Asha Rao\", \"ownerPhone\": \"+91 98765 43210\", \"emergencyName\": \"Ravi Rao\", \"emergencyPhone\": \"+91 98765 00000\", \"dogName\": \"Kaju\", \"breed\": \"Indie\", \"age\": \"3 years\", \"sex\": \"female\", \"sterilised\": \"no\", \"with_biggerDogs\": \"unsure\", \"confirmTrue\": true, \"signName\": \"Asha Rao\", \"signDate\": \"2026-11-26\"}"
+                },
+                {
+                  "key": "website",
+                  "type": "text",
+                  "value": ""
+                },
+                {
+                  "key": "documents",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/questionnaires",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "questionnaires"
+              ]
+            },
+            "description": "What web/know-your-dog sends. Pick 0-5 files for `documents` (or disable that row). Rate-limited per IP."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('questionnaireId', pm.response.json().data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List questionnaires",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/questionnaires?page=1&limit=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "questionnaires"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "new",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "kaju",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": false
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "disabled": false
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const items = pm.response.json().data || [];",
+                  "if (items.length) pm.collectionVariables.set('questionnaireId', items[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get questionnaire",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/questionnaires/{{questionnaireId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "questionnaires",
+                "{{questionnaireId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update questionnaire (admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"reviewed\",\n  \"dogId\": \"{{dogId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/questionnaires/{{questionnaireId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "questionnaires",
+                "{{questionnaireId}}"
+              ]
+            },
+            "description": "status: new | reviewed | archived; dogId: existing dog or null."
           }
         }
       ]

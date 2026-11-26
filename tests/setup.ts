@@ -20,6 +20,9 @@ process.env.BCRYPT_COST = '4'; // spec uses 12; 4 keeps the suite fast
 process.env.UPLOAD_PROVIDER = 'local';
 process.env.UPLOAD_DIR = mkdtempSync(path.join(tmpdir(), 'pawsnplay-uploads-'));
 delete process.env.PUBLIC_BASE_URL;
+// High by default; tests/questionnaires-ratelimit.test.ts lowers them with vi.hoisted().
+process.env.QUESTIONNAIRE_RATE_PER_HOUR = '1000';
+process.env.QUESTIONNAIRE_RATE_PER_DAY = '1000';
 
 let mongo: MongoMemoryServer | undefined;
 

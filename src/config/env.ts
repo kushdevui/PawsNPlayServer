@@ -49,6 +49,9 @@ const envSchema = z
     S3_ACCESS_KEY_ID: z.string().optional(),
     S3_SECRET_ACCESS_KEY: z.string().optional(),
     CLOUDINARY_URL: z.string().optional(),
+    // Public "Know Your Dog" questionnaire: submissions allowed per IP.
+    QUESTIONNAIRE_RATE_PER_HOUR: z.coerce.number().int().min(1).default(5),
+    QUESTIONNAIRE_RATE_PER_DAY: z.coerce.number().int().min(1).default(20),
     LOG_LEVEL: z.enum(LOG_LEVELS).optional(),
   })
   .superRefine((value, ctx) => {

@@ -138,8 +138,7 @@ One instance serves everything through Nginx:
 | Path | Served by |
 |---|---|
 | `/api/v1/*`, `/uploads/*` | the API (PM2, `127.0.0.1:4000`) |
-| `/faqs/` | the FAQ page from `web/faqs/` (any `web/<page>/index.html` is served at `/<page>/`) |
-| `/` | redirects to `/faqs/` |
+| `/` | redirects to `/faqs` (an app route) |
 | everything else | the Expo web build of the app, e.g. `/login` and `/admin` |
 
 1. **DNS** at your registrar: create an `A` record for `@` and another for `www`, both pointing to the instance's

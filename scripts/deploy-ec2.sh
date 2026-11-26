@@ -5,7 +5,7 @@
 #
 # One instance serves everything through Nginx:
 #   /api/v1/*, /uploads/*  -> Node API on 127.0.0.1:4000 (PM2)
-#   /faqs/                 -> static FAQ page (web/faqs in this repo); GET / redirects there
+#   /faqs, /know-your-dog, /admin, ... -> the app's web build (PawsNPlayRender); GET / redirects to /faqs
 #   everything else        -> Expo web build of the app (SPA: /login, /admin/..., /staff, /user)
 #
 # First run: installs Node 22, git, Nginx, PM2 (+ swap on small instances), clones the API to
@@ -184,29 +184,10 @@ fi
 pm2 save
 sudo env PATH="$PATH:/usr/bin" pm2 startup systemd -u "$USER" --hp "$HOME" >/dev/null
 
-# ---------- 8. Static pages (web/<page>/) + robots.txt ----------
-say "Publishing static pages (web/*)"
-sudo mkdir -p "$WWW_ROOT/app" "$WWW_ROOT/faqs"
-# Every web/<page>/index.html becomes /<page>/ (e.g. faqs). Names used by the app or the API
-# are skipped so they can never shadow app routes.
-STATIC_PAGES=()
-for dir in web/*/; do
-  page=$(basename "$dir")
-  [ -f "$dir/index.html" ] || continue
-  if ! [[ "$page" =~ ^[a-z0-9][a-z0-9-]*$ ]] || [[ " api uploads admin login staff user assets _expo app " == *" $page "* ]]; then
-    warn "Skipping web/$page (name is reserved or invalid)."
-    continue
-  fi
-  sudo mkdir -p "$WWW_ROOT/$page"
-  sudo rsync -a --delete --chmod=D755,F644 "$dir" "$WWW_ROOT/$page/"
-  sudo chmod 755 "$WWW_ROOT/$page"
-  STATIC_PAGES+=("$page")
-done
-if [[ " ${STATIC_PAGES[*]} " != *" faqs "* ]]; then
-  warn "web/faqs/index.html is missing in the repo - /faqs will show a placeholder."
-  echo '<!doctype html><title>FAQs</title><p>FAQs are coming soon.</p>' | sudo tee "$WWW_ROOT/faqs/index.html" >/dev/null
-  STATIC_PAGES+=(faqs)
-fi
+# ---------- 8. robots.txt + app placeholder ----------
+# All screens (FAQs, Know Your Dog, admin, ...) come from the app's web build (PawsNPlayRender).
+say "Preparing web root"
+sudo mkdir -p "$WWW_ROOT/app"
 if [ -f web/robots.txt ]; then
   sudo install -m 644 web/robots.txt "$WWW_ROOT/robots.txt"
 else
@@ -217,7 +198,7 @@ if [ ! -f "$WWW_ROOT/app/index.html" ]; then
   echo '<!doctype html><title>Paws N Play</title><p>The app is being deployed. Please check back soon.</p>' \
     | sudo tee "$WWW_ROOT/app/index.html" >/dev/null
 fi
-sudo chmod 755 /var/www "$WWW_ROOT" "$WWW_ROOT/app" "$WWW_ROOT/faqs"
+sudo chmod 755 /var/www "$WWW_ROOT" "$WWW_ROOT/app"
 
 # ---------- 9. Nginx ----------
 if [ -d /etc/nginx/sites-available ]; then
@@ -251,7 +232,7 @@ nginx_locations() {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    location = / { return 302 /faqs/; }
+    location = / { return 302 /faqs; }
     location = /robots.txt { alias /var/www/pawsnplay/robots.txt; }
 
     # Expo web build (SPA). Hashed bundles are immutable; index.html must always be revalidated.
@@ -267,13 +248,6 @@ nginx_locations() {
     location = /index.html { add_header Cache-Control "no-cache"; }
     location / { try_files $uri $uri/ /index.html; }
 EOF
-  # Static pages from web/<page>/ (published to /var/www/pawsnplay/<page>/).
-  local page
-  for page in "${STATIC_PAGES[@]}"; do
-    printf '    location = /%s { return 301 /%s/; }\n' "$page" "$page"
-    printf '    location ^~ /%s/ {\n        root /var/www/pawsnplay;\n        index index.html;\n' "$page"
-    printf '        try_files $uri $uri/ =404;\n        add_header Cache-Control "no-cache";\n    }\n'
-  done
 }
 
 CERT_DIR=""

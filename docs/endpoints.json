@@ -400,7 +400,7 @@
       ],
       "notes": "multipart/form-data from the app's Know Your Dog screen. Honeypot `website` non-empty -> 201 fake id, nothing stored. Rate limit per IP: 5/hour, 20/day.",
       "body": {
-        "answers": "JSON string: { ownerName, ownerPhone, emergencyName, emergencyPhone, dogName, breed, age, sex: male|female, sterilised: yes|no, signName, confirmTrue: true, ...optional keys (see BACKEND_API_SPEC.md §7.12) }",
+        "answers": "JSON string: { ownerName, ownerPhone, emergencyName, emergencyPhone, dogName, breed, age, sex: male|female, sterilised: yes|no, confirmTrue: true, signName (optional), ...optional keys (see BACKEND_API_SPEC.md §7.12) }",
         "website": "string (honeypot, leave empty)",
         "documents": "0-5 files, image/* (not SVG) or application/pdf, <= 10 MB each"
       },

@@ -104,7 +104,7 @@ export const answersSchema = z.object({
   sendingItems: text(500),
   // Confirm
   confirmTrue: z.literal(true, { errorMap: () => ({ message: 'Please confirm that your answers are true.' }) }),
-  signName: requiredText('Please type your name to sign.', 100),
+  signName: text(100), // optional: the app form no longer asks for it
   signDate: date,
 });
 

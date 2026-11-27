@@ -609,7 +609,7 @@ The app then saves `{ kind, name, uri: url, mimeType, size, uploadedAt }` into `
 `answers` keys (whitelisted; unknown keys are dropped; strings are trimmed, empty optional answers removed; max length per
 field 40-2000 characters as on the page):
 - **Required:** `ownerName`, `ownerPhone`, `emergencyName`, `emergencyPhone`, `dogName`, `breed`, `age`,
-  `sex` (`male|female`), `sterilised` (`yes|no`), `signName`, `confirmTrue` (must be `true`).
+  `sex` (`male|female`), `sterilised` (`yes|no`), `confirmTrue` (must be `true`). `signName` is optional (the form no longer asks for it).
   Phones: 7-20 characters of digits, `+`, `-`, spaces.
 - **Optional text**, by section of the form:
   - About your dog: `weight, heatInfo` · contact: `address`

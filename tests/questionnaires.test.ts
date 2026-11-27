@@ -106,12 +106,19 @@ describe('POST /questionnaires (public)', () => {
     ['dogName', "Please enter your dog's name."],
     ['sex', "Please choose your dog's sex."],
     ['sterilised', 'Please tell us if your dog is sterilised.'],
-    ['signName', 'Please type your name to sign.'],
   ])('missing %s -> 422 with a friendly message', async (field, message) => {
     const answers: Record<string, unknown> = validAnswers();
     delete answers[field];
     expectError(await submit(answers), 422, 'VALIDATION_ERROR', message);
     expect(await QuestionnaireModel.countDocuments()).toBe(0);
+  });
+
+  it('signName is optional (the form no longer asks for it)', async () => {
+    const answers: Record<string, unknown> = validAnswers();
+    delete answers.signName;
+    const res = await submit(answers);
+    expect(res.status).toBe(201);
+    expect(await QuestionnaireModel.countDocuments()).toBe(1);
   });
 
   it('confirmTrue must be true; phones must look like phones; answers must be JSON', async () => {

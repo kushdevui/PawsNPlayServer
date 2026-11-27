@@ -3,7 +3,7 @@ import { isObjectId } from '../../utils/objectId.js';
 import { QUESTIONNAIRE_STATUSES } from './questionnaires.model.js';
 
 /**
- * Answers sent by web/know-your-dog/index.html as a JSON string in the `answers` field.
+ * Answers sent by the app's /know-your-dog form (Know Your Dog questionnaire, Nov 2026) as a JSON string in `answers`.
  * Only these keys are kept (unknown keys are dropped). Keys are listed in form order so the first
  * problem reported is the first one on the page. Max lengths follow the page's `maxlength` (cap 2000).
  */
@@ -41,30 +41,14 @@ const date = z
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Please pick dates with the date picker.')
   .optional();
 
-/** "With other dogs and with people" rows on the page. */
-export const SOCIAL_KEYS = [
-  'biggerDogs',
-  'smallerDogs',
-  'maleDogs',
-  'femaleDogs',
-  'puppies',
-  'newPeople',
-  'men',
-  'women',
-] as const;
-
-const social: Record<string, z.ZodTypeAny> = {};
-for (const key of SOCIAL_KEYS) {
-  social[`with_${key}`] = choice(['fine', 'unsure', 'not_okay'], CHECK).optional();
-  social[`with_${key}_note`] = text(300);
-}
-
 export const answersSchema = z.object({
+  // You and your emergency contact
   ownerName: requiredText('Please enter your name.', 100),
   ownerPhone: phone('Please enter a valid phone number for you.'),
   address: text(500),
   emergencyName: requiredText('Please add an emergency contact name.', 100),
   emergencyPhone: phone('Please enter a valid emergency contact phone number.'),
+  // About your dog
   dogName: requiredText("Please enter your dog's name.", 60),
   breed: requiredText("Please enter your dog's breed.", 60),
   age: requiredText("Please enter your dog's age.", 40),
@@ -72,6 +56,7 @@ export const answersSchema = z.object({
   sex: choice(['male', 'female'], "Please choose your dog's sex."),
   sterilised: choice(['yes', 'no'], 'Please tell us if your dog is sterilised.'),
   heatInfo: text(500),
+  // Health
   rabiesDate: date,
   comboVaccineDate: date,
   dewormingDate: date,
@@ -82,18 +67,18 @@ export const answersSchema = z.object({
   medication: text(1000),
   allergies: text(300),
   vet: text(200),
+  // Food
   homeDiet: text(500),
   standardMealOk: yesNo(CHECK),
-  specialFood: text(500),
-  extraMeal: yesNo(CHECK),
   avoidFoods: text(300),
-  ownBowls: yesNo(CHECK),
   eatingStyle: text(300),
-  ...social,
-  breedsDislike: text(300),
+  // With other dogs and with people
+  otherDogs: text(1000),
+  withPeople: text(1000),
   fightHistory: text(1000),
   biteHistory: text(1000),
   boardingBefore: text(1000),
+  // Triggers and quirks
   foodGuarding: text(300),
   toyGuarding: text(300),
   placeGuarding: text(300),
@@ -104,11 +89,20 @@ export const answersSchema = z.object({
   barking: text(300),
   eatsObjects: text(300),
   calmingTips: text(300),
+  // Routine
   sleep: text(200),
   toilet: text(300),
   exercise: text(200),
-  bath: yesNo(CHECK),
   anythingElse: text(2000),
+  // Your requests for this stay
+  trialVisit: text(300),
+  keepSeparate: yesNo(CHECK),
+  specialFood: text(500),
+  extraMeal: yesNo(CHECK),
+  ownBowls: yesNo(CHECK),
+  bath: yesNo(CHECK),
+  sendingItems: text(500),
+  // Confirm
   confirmTrue: z.literal(true, { errorMap: () => ({ message: 'Please confirm that your answers are true.' }) }),
   signName: requiredText('Please type your name to sign.', 100),
   signDate: date,

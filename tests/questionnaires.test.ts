@@ -10,7 +10,7 @@ beforeEach(async () => {
   ({ c, id } = await seededWorld());
 });
 
-/** What web/know-your-dog/index.html sends (required fields + a few optional ones). */
+/** What the app's /know-your-dog form sends (required fields + a few optional ones). */
 const validAnswers = (overrides: Record<string, unknown> = {}) => ({
   ownerName: 'Asha Rao',
   ownerPhone: '+91 98765 43210',
@@ -23,10 +23,12 @@ const validAnswers = (overrides: Record<string, unknown> = {}) => ({
   sterilised: 'no',
   heatInfo: 'Last heat in August',
   rabiesDate: '2026-03-10',
-  with_biggerDogs: 'unsure',
-  with_biggerDogs_note: 'Barks at big dogs at first',
-  with_men: 'fine',
+  otherDogs: 'Barks at big dogs at first, fine after a sniff',
+  withPeople: 'Wary of men',
   standardMealOk: 'yes',
+  keepSeparate: 'no',
+  bath: 'yes',
+  sendingItems: 'Her bowl and blanket',
   confirmTrue: true,
   signName: 'Asha Rao',
   signDate: '2026-11-26',
@@ -56,7 +58,8 @@ const create = async (overrides: Record<string, unknown> = {}) => {
 
 describe('POST /questionnaires (public)', () => {
   it('stores the answers and a file -> 201 { id, createdAt }', async () => {
-    const res = await submit(validAnswers({ unknownKey: 'dropped', notes: 'x'.repeat(10) }), {
+    // Keys from the earlier form (ratings grid, breedsDislike) are no longer accepted and are dropped like any unknown key.
+    const res = await submit(validAnswers({ unknownKey: 'dropped', with_biggerDogs: 'unsure', breedsDislike: 'Pugs' }), {
       files: [{ buffer: PDF, filename: 'vaccines.pdf', contentType: 'application/pdf' }],
     });
 
@@ -65,8 +68,16 @@ describe('POST /questionnaires (public)', () => {
 
     const stored = await QuestionnaireModel.findById(res.body.data.id).lean();
     expect(stored?.status).toBe('new');
-    expect(stored?.answers).toMatchObject({ dogName: 'Kaju', with_biggerDogs: 'unsure', confirmTrue: true });
+    expect(stored?.answers).toMatchObject({
+      dogName: 'Kaju',
+      otherDogs: 'Barks at big dogs at first, fine after a sniff',
+      keepSeparate: 'no',
+      sendingItems: 'Her bowl and blanket',
+      confirmTrue: true,
+    });
     expect(stored?.answers).not.toHaveProperty('unknownKey');
+    expect(stored?.answers).not.toHaveProperty('with_biggerDogs');
+    expect(stored?.answers).not.toHaveProperty('breedsDislike');
     expect(stored?.ipHash).toMatch(/^[0-9a-f]{64}$/);
     expect(JSON.stringify(stored)).not.toMatch(/127\.0\.0\.1|::1/); // no raw IP
     expect(stored?.documents).toHaveLength(1);
@@ -176,9 +187,9 @@ describe('GET /questionnaires (admin, staff)', () => {
     const res = await c.staff.get(`/questionnaires/${qid}`);
     expect(res.status).toBe(200);
     expect(Object.keys(res.body.data).sort()).toEqual(
-      ['answers', 'createdAt', 'documents', 'dogId', 'id', 'reviewedAt', 'reviewedBy', 'status', 'updatedAt'].sort(),
+      ['answers', 'createdAt', 'documents', 'dogId', 'id', 'reviewedAt', 'reviewedBy', 'reviewedByName', 'status', 'updatedAt'].sort(),
     );
-    expect(res.body.data).toMatchObject({ id: qid, status: 'new', dogId: null, reviewedBy: null, reviewedAt: null });
+    expect(res.body.data).toMatchObject({ id: qid, status: 'new', dogId: null, reviewedBy: null, reviewedByName: null, reviewedAt: null });
     expect(res.body.data.answers).toMatchObject({ dogName: 'Kaju', ownerPhone: '+91 98765 43210' });
     expectError(await c.admin.get('/questionnaires/0123456789abcdef01234567'), 404, 'NOT_FOUND', 'Questionnaire not found');
   });
@@ -198,11 +209,14 @@ describe('PATCH /questionnaires/:id (admin)', () => {
       status: 'reviewed',
       dogId: id('d_001'),
       reviewedBy: id('u_001'),
+      reviewedByName: 'Kush',
       reviewedAt: expect.any(String),
     });
+    // The single GET returns the reviewer's name too, so the detail screen needs no second call.
+    expect((await c.admin.get(`/questionnaires/${qid}`)).body.data.reviewedByName).toBe('Kush');
 
     const reset = await c.admin.patch(`/questionnaires/${qid}`, { status: 'new', dogId: null });
-    expect(reset.body.data).toMatchObject({ status: 'new', dogId: null, reviewedBy: null, reviewedAt: null });
+    expect(reset.body.data).toMatchObject({ status: 'new', dogId: null, reviewedBy: null, reviewedByName: null, reviewedAt: null });
   });
 
   it('dogId must exist; status must be valid', async () => {

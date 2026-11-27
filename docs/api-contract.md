@@ -62,8 +62,8 @@ The app then saves the returned `url` in `dog.documents[].uri`. In mock mode the
 |---|---|---|---|
 | POST | /questionnaires | public | multipart: `answers` (JSON string), `website` (honeypot), `documents` (0-5 images/PDF, ≤ 10 MB); rate-limited per IP; -> `201 { id, createdAt }` |
 | GET | /questionnaires | admin, staff | `status` (new/reviewed/archived), `search` (dog name, owner name, phone); newest first |
-| GET | /questionnaires/:id | admin, staff | full answers + documents |
-| PATCH | /questionnaires/:id | admin | `status`, `dogId` (existing dog or null) |
+| GET | /questionnaires/:id | admin, staff | complete submission in one call: every answer, documents, review info incl. `reviewedByName` |
+| PATCH | /questionnaires/:id | admin | `status`, `dogId` (existing dog or null); the app sends only `{status: 'reviewed'}` |
 
 Full rules: `docs/BACKEND_API_SPEC.md` §7.12.
 

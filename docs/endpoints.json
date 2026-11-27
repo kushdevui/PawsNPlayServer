@@ -451,6 +451,104 @@
       "response": {
         "data": "Questionnaire"
       }
+    },
+    {
+      "group": "waivers",
+      "method": "GET",
+      "path": "/waivers/current",
+      "roles": [
+        "public"
+      ],
+      "response": {
+        "data": {
+          "version": "string",
+          "contentHash": "sha256 hex",
+          "content": "WaiverContent { version, title, intro[], parts[{ id, label, title, blocks[] }] }",
+          "consents": "[{ key, label, shortLabel, required }]"
+        }
+      }
+    },
+    {
+      "group": "waivers",
+      "method": "POST",
+      "path": "/waivers",
+      "roles": [
+        "public"
+      ],
+      "notes": "Rate limit per IP 5/hour, 20/day. Honeypot `website` non-empty -> fake 201. 409 WAIVER_OUTDATED if version/contentHash is not current.",
+      "body": {
+        "version": "string",
+        "contentHash": "string",
+        "parentName": "string",
+        "dogName": "string",
+        "phone": "string",
+        "consents": "{ confirm1..confirm7, acceptRisks, vetAuthorisation, acceptOtherTerms, finalAgreement: true, photosOptOut?: boolean }",
+        "typedSignature": "string (must equal parentName ignoring case/spaces)",
+        "signature": "{ width, height, strokes: number[][][] }",
+        "questionnaireId": "string?",
+        "website": "string (honeypot)"
+      },
+      "response": {
+        "data": {
+          "id": "string",
+          "signedAt": "ISO",
+          "version": "string"
+        }
+      }
+    },
+    {
+      "group": "waivers",
+      "method": "GET",
+      "path": "/waivers",
+      "roles": [
+        "admin",
+        "staff"
+      ],
+      "query": {
+        "search": "parent name, dog name, phone",
+        "from": "ISO (signedAt)",
+        "to": "ISO (signedAt, exclusive)"
+      },
+      "response": "List<{ id, signedAt, parentName, dogName, phone, version, photosOptOut, questionnaireId, dogId }>"
+    },
+    {
+      "group": "waivers",
+      "method": "GET",
+      "path": "/waivers/:id",
+      "roles": [
+        "admin",
+        "staff"
+      ],
+      "response": {
+        "data": "Waiver { id, status, version, contentHash, signedAt, parentName, dogName, phone, consents[{ key, label, required, value }], photosOptOut, typedSignature, signature, signatureSvg, content, userAgent, questionnaireId, dogId, createdAt, updatedAt }"
+      }
+    },
+    {
+      "group": "waivers",
+      "method": "GET",
+      "path": "/waivers/:id/document",
+      "roles": [
+        "admin",
+        "staff"
+      ],
+      "notes": "text/html printable page. Auth: Bearer header or ?token=<accessToken> (this route only).",
+      "response": "text/html"
+    },
+    {
+      "group": "waivers",
+      "method": "PATCH",
+      "path": "/waivers/:id",
+      "roles": [
+        "admin"
+      ],
+      "body": {
+        "dogId": "string|null?",
+        "questionnaireId": "string|null?"
+      },
+      "notes": "Any other key -> 422 (signed waivers are immutable).",
+      "response": {
+        "data": "Waiver"
+      }
     }
   ]
 }

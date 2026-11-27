@@ -46,6 +46,18 @@
     {
       "key": "questionnaireId",
       "value": ""
+    },
+    {
+      "key": "waiverId",
+      "value": ""
+    },
+    {
+      "key": "waiverVersion",
+      "value": ""
+    },
+    {
+      "key": "waiverHash",
+      "value": ""
     }
   ],
   "item": [
@@ -1300,6 +1312,213 @@
               ]
             },
             "description": "status: new | reviewed | archived; dogId: existing dog or null."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Waivers",
+      "item": [
+        {
+          "name": "Current waiver (public)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/waivers/current",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "waivers",
+                "current"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const d = pm.response.json().data;",
+                  "pm.collectionVariables.set('waiverVersion', d.version);",
+                  "pm.collectionVariables.set('waiverHash', d.contentHash);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sign waiver (public)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"version\": \"{{waiverVersion}}\",\n  \"contentHash\": \"{{waiverHash}}\",\n  \"parentName\": \"Asha Rao\",\n  \"dogName\": \"Kaju\",\n  \"phone\": \"+91 98765 43210\",\n  \"consents\": {\n    \"confirm1\": true,\n    \"confirm2\": true,\n    \"confirm3\": true,\n    \"confirm4\": true,\n    \"confirm5\": true,\n    \"confirm6\": true,\n    \"confirm7\": true,\n    \"acceptRisks\": true,\n    \"vetAuthorisation\": true,\n    \"acceptOtherTerms\": true,\n    \"finalAgreement\": true,\n    \"photosOptOut\": false\n  },\n  \"typedSignature\": \"Asha Rao\",\n  \"signature\": {\n    \"width\": 320,\n    \"height\": 120,\n    \"strokes\": [\n      [\n        [\n          10,\n          60\n        ],\n        [\n          30,\n          40\n        ],\n        [\n          50,\n          70\n        ],\n        [\n          70,\n          30\n        ],\n        [\n          90,\n          80\n        ]\n      ],\n      [\n        [\n          120,\n          50\n        ],\n        [\n          140,\n          52\n        ],\n        [\n          160,\n          55\n        ],\n        [\n          180,\n          60\n        ],\n        [\n          200,\n          66\n        ],\n        [\n          220,\n          70\n        ]\n      ]\n    ]\n  },\n  \"website\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/waivers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "waivers"
+              ]
+            },
+            "description": "Run \"Current waiver\" first (saves version + contentHash). 409 WAIVER_OUTDATED if they are stale.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('waiverId', pm.response.json().data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List waivers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/waivers?page=1&limit=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "waivers"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "kaju",
+                  "disabled": true
+                },
+                {
+                  "key": "from",
+                  "value": "2026-11-01T00:00:00.000Z",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "2026-12-01T00:00:00.000Z",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": false
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "disabled": false
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const items = pm.response.json().data || [];",
+                  "if (items.length) pm.collectionVariables.set('waiverId', items[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get waiver",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/waivers/{{waiverId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "waivers",
+                "{{waiverId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Waiver document (HTML)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/waivers/{{waiverId}}/document",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "waivers",
+                "{{waiverId}}",
+                "document"
+              ]
+            },
+            "description": "Printable HTML. In a browser: {{baseUrl}}/waivers/<id>/document?token=<accessToken>."
+          }
+        },
+        {
+          "name": "Link waiver (admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dogId\": \"{{dogId}}\",\n  \"questionnaireId\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/waivers/{{waiverId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "waivers",
+                "{{waiverId}}"
+              ]
+            },
+            "description": "Only dogId / questionnaireId can change."
           }
         }
       ]

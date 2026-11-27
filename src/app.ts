@@ -30,6 +30,13 @@ export function createApp() {
   app.use(
     pinoHttp({
       logger,
+      // Never log access tokens passed as ?token= (GET /waivers/:id/document).
+      serializers: {
+        req: (req: { url?: string }) => {
+          if (req.url) req.url = req.url.replace(/([?&]token=)[^&]*/gi, '$1[redacted]');
+          return req;
+        },
+      },
       genReqId: (req, res) => {
         const incoming = req.headers['x-request-id'];
         const id = typeof incoming === 'string' && /^[\w-]{1,64}$/.test(incoming) ? incoming : randomUUID();

@@ -5,7 +5,7 @@ Node.js REST API for **Paws N' Play**, a **dog boarding** facility. The mobile a
 capacity, payments and billing. Roles: **admin** (full access), **staff** (read + check-in/out) and
 **user** (customer; only auth and `/me` for now).
 
-**The contract is [`docs/BACKEND_API_SPEC.md`](docs/BACKEND_API_SPEC.md)**: models, all routes (27 core + 4 questionnaire routes), error codes,
+**The contract is [`docs/BACKEND_API_SPEC.md`](docs/BACKEND_API_SPEC.md)**: models, all routes (27 core + 4 questionnaire + 6 waiver routes), error codes,
 business rules (§8) and acceptance tests (§11). [`docs/api-contract.md`](docs/api-contract.md) and
 [`docs/endpoints.json`](docs/endpoints.json) are mirrored from the app.
 
@@ -107,6 +107,19 @@ Owners use it to send their dog's details before a stay; this server only stores
 curl -s "$API/questionnaires?status=new" -H "$(H $ADMIN)" | jq '.data[] | {dogName, ownerName, ownerPhone}'
 ```
 
+### Boarding Consent & Waiver
+Dog parents sign the waiver online at `/waiver` (an app screen). The legal text is versioned in
+`src/modules/waivers/content/` (currently `v2026-11.ts`, transcribed word for word from the PDF) and served by the public
+`GET /api/v1/waivers/current`, so the app renders exactly what is signed.
+- `POST /api/v1/waivers` stores the signature together with a full snapshot of the text, the version and its SHA-256
+  hash, the ticked consents, the typed and drawn signature, `signedAt` (server time), an HMAC of the IP and the user
+  agent. It is rate-limited per IP (`WAIVER_RATE_PER_HOUR` = 5, `WAIVER_RATE_PER_DAY` = 20).
+- Admins and staff list and read waivers. `GET /api/v1/waivers/:id/document` is a printable HTML record; it also
+  accepts `?token=<accessToken>` so the app can open it in a browser tab.
+- Admins can only link a dog or Know Your Dog form; the signed content is immutable.
+- To change the text, add a new version file and point `CURRENT_WAIVER` at it. Never edit a published version.
+- Legal review of the online wording is recommended. Spec §7.13 has the details.
+
 ### Postman
 Import [`docs/PawsNPlay.postman_collection.json`](docs/PawsNPlay.postman_collection.json) and run **Login as admin
 (Kush)** or **Login as staff (Neha)** first. The login test scripts save `accessToken` and `refreshToken`.
@@ -191,6 +204,7 @@ src/
     admin/                       # dashboard, occupancy calendar, billing
     uploads/                     # POST /uploads (multer) + storage providers
     questionnaires/              # public "Know Your Dog" submissions + admin/staff review
+    waivers/                     # versioned waiver text (content/), online signing, printable record
 scripts/seed.ts                  # npm run seed
 seed/                            # copy of PawsNPlayRender/mock/data/{users,dogs,bookings,settings}.json
 tests/                           # Vitest + Supertest

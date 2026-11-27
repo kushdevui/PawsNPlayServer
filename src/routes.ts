@@ -8,8 +8,9 @@ import { questionnairesRouter } from './modules/questionnaires/questionnaires.ro
 import { settingsRouter } from './modules/settings/settings.routes.js';
 import { uploadsRouter } from './modules/uploads/uploads.routes.js';
 import { usersRouter } from './modules/users/users.routes.js';
+import { waiversRouter } from './modules/waivers/waivers.routes.js';
 
-/** Everything under /api/v1 - the routes of docs/BACKEND_API_SPEC.md §13 (27 core + questionnaires). */
+/** Everything under /api/v1 - the routes of docs/BACKEND_API_SPEC.md §13 (27 core + questionnaires + waivers). */
 export const apiRouter = Router();
 
 apiRouter.use('/health', healthRouter);
@@ -22,3 +23,4 @@ apiRouter.use('/settings', settingsRouter);
 apiRouter.use('/admin', adminRouter);
 apiRouter.use('/uploads', uploadsRouter);
 apiRouter.use('/questionnaires', questionnairesRouter);
+apiRouter.use('/waivers', waiversRouter);

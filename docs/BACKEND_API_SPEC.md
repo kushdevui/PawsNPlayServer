@@ -18,7 +18,7 @@
 5. [Error codes](#5-error-codes)
 6. [Data models (MongoDB)](#6-data-models-mongodb)
 7. [Endpoints](#7-endpoints)
-   - 7.1 Health · 7.2 Auth · 7.3 Users · 7.4 Dogs · 7.5 Bookings · 7.6 Payments · 7.7 Settings · 7.8 Dashboard · 7.9 Occupancy · 7.10 Billing · 7.11 Uploads · 7.12 Questionnaires
+   - 7.1 Health · 7.2 Auth · 7.3 Users · 7.4 Dogs · 7.5 Bookings · 7.6 Payments · 7.7 Settings · 7.8 Dashboard · 7.9 Occupancy · 7.10 Billing · 7.11 Uploads · 7.12 Questionnaires · 7.13 Waivers
 8. [Business rules (exact algorithms)](#8-business-rules-exact-algorithms)
 9. [Auth & security](#9-auth--security)
 10. [Seed data](#10-seed-data)
@@ -138,6 +138,9 @@ Scripts: `dev`, `build`, `start`, `test`, `seed` (drops & re-seeds Phase 1 data)
 | Questionnaires: submit (`POST /questionnaires`) | public | public | public |
 | Questionnaires: read | ✓ | ✓ | – |
 | Questionnaires: update | ✓ | – | – |
+| Waivers: current text + sign (`GET /waivers/current`, `POST /waivers`) | public | public | public |
+| Waivers: read, printable document | ✓ | ✓ | – |
+| Waivers: link dog / questionnaire | ✓ | – | – |
 
 - No/invalid token → **401** `UNAUTHORIZED`. Wrong role → **403** `FORBIDDEN`.
 - `inactive` users cannot log in and their tokens must be rejected (401).
@@ -163,6 +166,7 @@ Scripts: `dev`, `build`, `start`, `test`, `seed` (drops & re-seeds Phase 1 data)
 | 422 | `INVALID_STATE` | status transition or edit not allowed from current status | – |
 | 422 | `HAS_OPEN_BOOKINGS` | archiving a dog that has open stays | – |
 | 422 | `OVERPAYMENT` | payment larger than balance due | `{ balanceDue }` |
+| 409 | `WAIVER_OUTDATED` | waiver version/contentHash is not the current one | `{ version, contentHash }` |
 | 422 | `CAPACITY_BELOW_OCCUPANCY` | capacity set below dogs checked in now | `{ checkedIn }` |
 | 429 | `RATE_LIMITED` | too many login attempts | – |
 | 500 | `INTERNAL_ERROR` | unexpected (never leak stack traces) | – |
@@ -661,6 +665,102 @@ to unlink; unknown -> 422 `"Choose an existing dog."`). Moving away from `new` s
 to `new` clears them. `200 { data: Questionnaire }`. The app only sends `{ "status": "reviewed" }` (Mark reviewed);
 `dogId` is kept in the API but the app no longer links forms to dog profiles.
 
+### 7.13 Waivers ("Boarding Consent & Waiver")
+
+> Dog parents sign online at `pawsnplaywithme.com/waiver` (an app screen). The text is versioned on the server
+> (`src/modules/waivers/content/v2026-11.ts`, transcribed word for word from the 8-page PDF) and the app renders it from
+> the API. **Legal review recommended** before relying on it - in particular the online checkbox wording (the
+> `acceptOtherTerms` label is the only text not printed in the PDF) and electronic signature requirements.
+
+**Versioning.** `contentHash` = SHA-256 (hex) of the canonical JSON (keys sorted) of `{ content, consents }`, computed at
+startup. A published version is never edited; a new text gets a new file/version, and old signatures keep their own
+snapshot.
+
+#### `GET /waivers/current` - public
+`ETag: "<contentHash>"`, `Cache-Control: public, max-age=300` (304 on `If-None-Match`).
+```json
+{ "data": {
+  "version": "2026-11", "contentHash": "<64 hex>",
+  "content": { "version": "2026-11", "title": "Paws N Play: Boarding Consent & Waiver", "intro": ["**Please read ...**", "..."],
+    "parts": [ { "id": "how-we-work", "label": "Part A", "title": "How we work", "blocks": [ ... ] }, ... ] },
+  "consents": [ { "key": "confirm1", "label": "I am the dog’s pet parent, ...", "shortLabel": "I am the pet parent (or authorised) and over 18", "required": true }, ... ]
+} }
+```
+Parts (in order): `how-we-work`, `before-the-stay`, `what-to-expect` (Part A), `what-you-confirm`, `risks-you-accept`,
+`if-your-dog-needs-a-vet`, `other-things-you-agree-to` (Part B), `commitment-and-signature` (label `null`).
+Blocks (`**text**` = bold):
+| type | fields |
+|---|---|
+| `paragraph` | `text` |
+| `card` | `title?`, `text`, `note?` (italic callout), `extra?` (text after the note), `items?` (bullets inside the card) |
+| `bullets` | `title?`, `items[]` |
+| `numbered` | `intro`, `items[]` |
+| `rates` | `title`, `text`, `items[{ price, label }]` |
+| `statement` | `text` (bold authorisation / agreement line) |
+
+Consent keys (all `required: true` except `photosOptOut`): `confirm1`..`confirm7` (Part B "What you confirm" 1-7),
+`acceptRisks` (risks intro + bullets + heat/sterilisation paragraph, joined with newlines), `vetAuthorisation`,
+`acceptOtherTerms`, `finalAgreement`, `photosOptOut` (optional: "I’d prefer you didn’t use photos or videos of my dog on
+Instagram or WhatsApp.").
+
+#### `POST /waivers` - public, JSON, rate-limited per IP (5 / hour, 20 / day: `WAIVER_RATE_PER_HOUR` / `_PER_DAY`)
+```json
+{ "version": "2026-11", "contentHash": "<from /waivers/current>",
+  "parentName": "Asha Rao", "dogName": "Kaju", "phone": "+91 98765 43210",
+  "consents": { "confirm1": true, "...": true, "finalAgreement": true, "photosOptOut": false },
+  "typedSignature": "Asha Rao",
+  "signature": { "width": 320, "height": 120, "strokes": [ [[10,60],[30,40]], [[120,50],[140,52]] ] },
+  "questionnaireId": "<optional>", "website": "" }
+```
+Checks, in order (first failure wins):
+1. `website` (honeypot) non-empty -> `201` with a fake id, nothing stored.
+2. `version`/`contentHash` not current -> **409 `WAIVER_OUTDATED`** · `"The waiver was updated. Please reload the page and sign again."` · `details { version, contentHash }` (current values).
+3. 422 `VALIDATION_ERROR`: `"Please enter your name."` (parentName, max 100) · `"Please enter your dog’s name."` (max 60) ·
+   `"Please enter a valid phone number."` (7-20 of digits, `+`, `-`, spaces).
+4. Each required consent must be exactly `true` -> `"Please tick: <shortLabel>"`. `photosOptOut` must be a boolean if sent.
+5. `typedSignature` must equal `parentName` ignoring case and extra spaces -> `"Please type your full name exactly as above to sign."`
+6. `signature`: width/height 100..2000, 1..100 strokes, 10..5000 points in total, every point `[x, y]` finite and inside
+   `0..width` / `0..height`, drawing at least 20 px across -> otherwise `"Please sign in the box."`. Clamp points to the box in the app.
+7. `questionnaireId` (optional) must exist -> `"We couldn’t find that Know Your Dog form."`
+
+`201 { "data": { "id": "...", "signedAt": "<ISO, server time>", "version": "2026-11" } }`
+
+**Audit trail stored with every signature (immutable):** `version`, `contentHash`, a full `snapshot` of the content and
+consent labels shown, the consents, `parentName`, `dogName`, `phone`, `typedSignature`, the drawn `signature` (strokes)
+plus a server-made `signatureSvg`, `signedAt` (server time), `ipHash` (HMAC-SHA256 of the IP; no raw IP),
+`userAgent` (max 300 chars), `questionnaireId`, `dogId` (null until linked), `status: "signed"`.
+
+#### `GET /waivers` - admin, staff
+Query: `search` (parent name, dog name, phone), `from`/`to` (ISO, on `signedAt`, `[from, to)`), `page`, `limit`. Newest first.
+```json
+{ "id": "...", "signedAt": "<ISO>", "parentName": "Asha Rao", "dogName": "Kaju", "phone": "+91 98765 43210",
+  "version": "2026-11", "photosOptOut": false, "questionnaireId": null, "dogId": null }
+```
+
+#### `GET /waivers/:id` - admin, staff · 404 `"Waiver not found"`
+```json
+{ "id": "...", "status": "signed", "version": "2026-11", "contentHash": "...", "signedAt": "<ISO>",
+  "parentName": "...", "dogName": "...", "phone": "...",
+  "consents": [ { "key": "confirm1", "label": "<label from the stored snapshot>", "required": true, "value": true }, ... ],
+  "photosOptOut": false, "typedSignature": "...", "signature": { "width": 320, "height": 120, "strokes": [...] },
+  "signatureSvg": "<svg ...>", "content": { ...stored snapshot... }, "userAgent": "...",
+  "questionnaireId": null, "dogId": null, "createdAt": "<ISO>", "updatedAt": "<ISO>" }
+```
+`ipHash` is never returned.
+
+#### `GET /waivers/:id/document` - admin, staff · `text/html`
+A self-contained printable page (no external assets or scripts): the stored content snapshot, the signed details,
+every checkbox with its stored label, the signature SVG and an audit block (waiver id, signedAt in the facility timezone
+and UTC, version, contentHash, device). Print or "Save as PDF" from the browser.
+Auth: the normal `Authorization: Bearer` header, **or `?token=<accessToken>`** (this route only) so the app can open it
+in a browser tab, which can't send headers. The token is redacted from server logs; the page sends
+`Cache-Control: no-store` and `Referrer-Policy: no-referrer`. Access tokens expire after 15 minutes.
+
+#### `PATCH /waivers/:id` - admin
+Body: `dogId` (existing dog id or `null`), `questionnaireId` (existing or `null`). Any other key -> 422
+`"A signed waiver can’t be changed. Only the linked dog and Know Your Dog form can be updated."`.
+No DELETE (405). `200 { data: Waiver }`
+
 ---
 
 ## 8. Business rules (exact algorithms)
@@ -860,6 +960,12 @@ The app's axios client sends `Authorization: Bearer <accessToken>`, expects the 
 | 29 | GET | /questionnaires | admin, staff | 200 List<QuestionnaireListItem> |
 | 30 | GET | /questionnaires/:id | admin, staff | 200 Questionnaire |
 | 31 | PATCH | /questionnaires/:id | admin | 200 Questionnaire |
+| 32 | GET | /waivers/current | public | 200 { version, contentHash, content, consents } |
+| 33 | POST | /waivers | public (rate-limited) | 201 { id, signedAt, version } |
+| 34 | GET | /waivers | admin, staff | 200 List<WaiverListItem> |
+| 35 | GET | /waivers/:id | admin, staff | 200 Waiver |
+| 36 | GET | /waivers/:id/document | admin, staff (Bearer or ?token=) | 200 text/html |
+| 37 | PATCH | /waivers/:id | admin | 200 Waiver |
 
 **Prompt to give the backend agent:**
 > Build the Node.js + TypeScript + Express + MongoDB (Mongoose) REST API described in `BACKEND_API_SPEC.md`

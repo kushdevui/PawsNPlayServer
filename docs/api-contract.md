@@ -24,6 +24,7 @@ Dates: ISO-8601 UTC strings. The app sends/receives UTC and shows local time.
 | 422 | INVALID_STATE | status change / edit not allowed from current status |
 | 422 | HAS_OPEN_BOOKINGS | archiving a dog with open stays |
 | 422 | OVERPAYMENT | payment larger than the balance due (`details.balanceDue`) |
+| 409 | WAIVER_OUTDATED | waiver text changed since the page loaded (`details.version`, `details.contentHash`) |
 | 422 | CAPACITY_BELOW_OCCUPANCY | capacity set lower than dogs checked in now |
 
 ## Endpoints
@@ -66,6 +67,18 @@ The app then saves the returned `url` in `dog.documents[].uri`. In mock mode the
 | PATCH | /questionnaires/:id | admin | `status`, `dogId` (existing dog or null); the app sends only `{status: 'reviewed'}` |
 
 Full rules: `docs/BACKEND_API_SPEC.md` §7.12.
+
+## Waivers ("Boarding Consent & Waiver", app screen `/waiver`)
+| Method | Path | Roles | Notes |
+|---|---|---|---|
+| GET | /waivers/current | public | `{ version, contentHash, content, consents[{ key, label, shortLabel, required }] }`; ETag = contentHash |
+| POST | /waivers | public | JSON `{ version, contentHash, parentName, dogName, phone, consents, typedSignature, signature: { width, height, strokes }, questionnaireId?, website }` -> `201 { id, signedAt, version }`; 409 `WAIVER_OUTDATED` if the text changed; rate-limited per IP |
+| GET | /waivers | admin, staff | `search` (parent, dog, phone), `from`/`to` on signedAt; newest first |
+| GET | /waivers/:id | admin, staff | full signed record incl. consents with stored labels, signature + SVG |
+| GET | /waivers/:id/document | admin, staff | printable HTML; Bearer header or `?token=<accessToken>` |
+| PATCH | /waivers/:id | admin | only `dogId` / `questionnaireId` (signed content is immutable) |
+
+Full rules: `docs/BACKEND_API_SPEC.md` §7.13.
 
 ## Booking money fields (derived by server)
 - `amountPaid` = Σ advances + payments − refunds

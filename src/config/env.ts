@@ -52,6 +52,9 @@ const envSchema = z
     // Public "Know Your Dog" questionnaire: submissions allowed per IP.
     QUESTIONNAIRE_RATE_PER_HOUR: z.coerce.number().int().min(1).default(5),
     QUESTIONNAIRE_RATE_PER_DAY: z.coerce.number().int().min(1).default(20),
+    // Public waiver signing: submissions allowed per IP.
+    WAIVER_RATE_PER_HOUR: z.coerce.number().int().min(1).default(5),
+    WAIVER_RATE_PER_DAY: z.coerce.number().int().min(1).default(20),
     LOG_LEVEL: z.enum(LOG_LEVELS).optional(),
   })
   .superRefine((value, ctx) => {

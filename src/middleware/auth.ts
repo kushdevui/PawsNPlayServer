@@ -27,12 +27,7 @@ function bearerToken(req: Request): string | null {
   return scheme?.toLowerCase() === 'bearer' && token ? token : null;
 }
 
-/**
- * 401 UNAUTHORIZED unless the request has a valid access token for a user who still exists and is
- * active (a user deactivated or deleted after login is rejected on the next request).
- */
-export const requireAuth: RequestHandler = async (req, _res, next) => {
-  const token = bearerToken(req);
+async function authenticate(req: Request, token: string | null): Promise<void> {
   const claims = token ? verifyAccessToken(token) : null;
   if (!claims || !isObjectId(claims.userId)) throw AppError.unauthorized();
 
@@ -43,6 +38,26 @@ export const requireAuth: RequestHandler = async (req, _res, next) => {
   }
 
   req.user = { id: user._id.toHexString(), role: user.role };
+}
+
+/**
+ * 401 UNAUTHORIZED unless the request has a valid access token for a user who still exists and is
+ * active (a user deactivated or deleted after login is rejected on the next request).
+ */
+export const requireAuth: RequestHandler = async (req, _res, next) => {
+  await authenticate(req, bearerToken(req));
+  next();
+};
+
+/**
+ * Like requireAuth, but also accepts `?token=<accessToken>`. Only for pages the app opens in a browser tab
+ * (e.g. GET /waivers/:id/document), where it cannot send an Authorization header. Access tokens are
+ * short-lived (15 min); the token is redacted from our request logs, and those pages send
+ * `Referrer-Policy: no-referrer` and `Cache-Control: no-store`.
+ */
+export const requireAuthOrQueryToken: RequestHandler = async (req, _res, next) => {
+  const query = req.query.token;
+  await authenticate(req, bearerToken(req) ?? (typeof query === 'string' && query ? query : null));
   next();
 };
 

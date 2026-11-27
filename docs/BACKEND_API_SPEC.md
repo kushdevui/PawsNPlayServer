@@ -594,8 +594,10 @@ The app then saves `{ kind, name, uri: url, mimeType, size, uploadedAt }` into `
 
 ### 7.12 Questionnaires ("Know Your Dog")
 
-> The form screen lives in the app (public route `/know-your-dog`, no login) and posts here. Admins and staff read
-> submissions through the API (or Postman) until an admin screen is built.
+> The form screen lives in the app (public route `/know-your-dog`, no login) and posts here. It follows the
+> "Paws N Play: Know Your Dog Questionnaire" (Nov 2026, 9 sections). Admins read submissions in the app at
+> `/admin/forms` (list) and `/admin/forms/[id]` (detail). The detail is **read-only** (the dog parent fills it) and is
+> loaded with **one call**, `GET /questionnaires/:id`; the only action is **Mark reviewed** (`PATCH` status).
 
 #### `POST /questionnaires` - public (no auth) · `multipart/form-data`
 | Field | Content |
@@ -609,14 +611,20 @@ field 40-2000 characters as on the page):
 - **Required:** `ownerName`, `ownerPhone`, `emergencyName`, `emergencyPhone`, `dogName`, `breed`, `age`,
   `sex` (`male|female`), `sterilised` (`yes|no`), `signName`, `confirmTrue` (must be `true`).
   Phones: 7-20 characters of digits, `+`, `-`, spaces.
-- **Optional text:** `address, weight, heatInfo, tickFlea, skinIssues, recentIllness, conditions, medication, allergies, vet,
-  homeDiet, specialFood, avoidFoods, eatingStyle, breedsDislike, fightHistory, biteHistory, boardingBefore, foodGuarding,
-  toyGuarding, placeGuarding, noiseFear, aloneBehaviour, handlingDislikes, escapeRisk, barking, eatsObjects, calmingTips,
-  sleep, toilet, exercise, anythingElse`.
-- **Optional yes/no:** `standardMealOk, extraMeal, ownBowls, bath`. **Dates** (`YYYY-MM-DD`): `rabiesDate,
-  comboVaccineDate, dewormingDate, signDate`.
-- **Social rows:** `with_<key>` = `fine|unsure|not_okay` and `with_<key>_note` (max 300) for
-  `biggerDogs, smallerDogs, maleDogs, femaleDogs, puppies, newPeople, men, women`.
+- **Optional text**, by section of the form:
+  - About your dog: `weight, heatInfo` · contact: `address`
+  - Health: `tickFlea, skinIssues, recentIllness, conditions, medication, allergies, vet`
+  - Food: `homeDiet, avoidFoods, eatingStyle`
+  - With other dogs and with people: `otherDogs, withPeople, fightHistory, biteHistory, boardingBefore`
+  - Triggers and quirks: `foodGuarding, toyGuarding, placeGuarding, noiseFear, aloneBehaviour, handlingDislikes,
+    escapeRisk, barking, eatsObjects, calmingTips`
+  - Routine: `sleep, toilet, exercise, anythingElse`
+  - Your requests for this stay: `trialVisit, specialFood, sendingItems`
+- **Optional yes/no:** `standardMealOk` (Food); `keepSeparate, extraMeal` (extra ₹150 per meal), `ownBowls`,
+  `bath` (extra ₹750) (Your requests for this stay). **Dates** (`YYYY-MM-DD`): `rabiesDate, comboVaccineDate,
+  dewormingDate, signDate`.
+- **Earlier form (before Nov 2026):** `with_<key>` / `with_<key>_note` ratings and `breedsDislike` are no longer
+  accepted (dropped like any unknown key). Stored submissions keep them; the app shows them under "Earlier form answers".
 
 Errors (422 `VALIDATION_ERROR`, message shown on the page), e.g. `"Please enter your name."`,
 `"Please enter a valid phone number for you."`, `"Please choose your dog's sex."`,
@@ -641,13 +649,17 @@ Query: `status` (`new|reviewed|archived`), `search` (case-insensitive substring 
 { "id": "...", "status": "new", "answers": { "dogName": "Kaju", "...": "..." },
   "documents": [ { "id": "...", "name": "vaccines.pdf", "uri": "https://.../uploads/questionnaires/...",
                    "mimeType": "application/pdf", "size": 240000, "uploadedAt": "<ISO>" } ],
-  "dogId": null, "reviewedBy": null, "reviewedAt": null, "createdAt": "<ISO>", "updatedAt": "<ISO>" }
+  "dogId": null, "reviewedBy": null, "reviewedByName": null, "reviewedAt": null,
+  "createdAt": "<ISO>", "updatedAt": "<ISO>" }
 ```
+This one response is the complete submission: every answer, every file and the review info (`reviewedByName` is the
+reviewer's name, so the app needs no extra user lookup). The app must not call other endpoints to show a submission.
 
 #### `PATCH /questionnaires/:id` - admin
 Body (all optional): `status` (`new|reviewed|archived`; invalid -> `"Invalid status."`), `dogId` (existing dog id, or `null`
 to unlink; unknown -> 422 `"Choose an existing dog."`). Moving away from `new` sets `reviewedBy`/`reviewedAt`; moving back
-to `new` clears them. `200 { data: Questionnaire }`
+to `new` clears them. `200 { data: Questionnaire }`. The app only sends `{ "status": "reviewed" }` (Mark reviewed);
+`dogId` is kept in the API but the app no longer links forms to dog profiles.
 
 ---
 

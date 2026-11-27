@@ -18,6 +18,8 @@ export interface PublicQuestionnaire {
   documents: PublicQuestionnaireFile[];
   dogId: string | null;
   reviewedBy: string | null;
+  /** Name of the reviewer (null when not reviewed, or the user no longer exists). */
+  reviewedByName: string | null;
   reviewedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -47,13 +49,14 @@ const serializeFile = (f: QuestionnaireFileDoc): PublicQuestionnaireFile => ({
   uploadedAt: f.uploadedAt,
 });
 
-export const serializeQuestionnaire = (q: QuestionnaireDoc): PublicQuestionnaire => ({
+export const serializeQuestionnaire = (q: QuestionnaireDoc, reviewedByName: string | null = null): PublicQuestionnaire => ({
   id: q._id.toHexString(),
   status: q.status,
   answers: q.answers ?? {},
   documents: (q.documents ?? []).map(serializeFile),
   dogId: hex(q.dogId),
   reviewedBy: hex(q.reviewedBy),
+  reviewedByName: q.reviewedBy ? reviewedByName : null,
   reviewedAt: q.reviewedAt ?? null,
   createdAt: q.createdAt,
   updatedAt: q.updatedAt,

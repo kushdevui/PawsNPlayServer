@@ -9,6 +9,7 @@ import type { Pagination } from '../../utils/pagination.js';
 import { escapeRegex } from '../../utils/regex.js';
 import { DogModel } from '../dogs/dogs.model.js';
 import { storeFile } from '../uploads/storage.js';
+import { UserModel } from '../users/users.model.js';
 import { QuestionnaireModel, type QuestionnaireDoc } from './questionnaires.model.js';
 import {
   answersSchema,
@@ -134,8 +135,17 @@ async function findQuestionnaire(id: string) {
   return doc;
 }
 
+/** Name of the team member who reviewed it, so the detail screen needs no second call. */
+async function reviewerName(doc: QuestionnaireDoc): Promise<string | null> {
+  if (!doc.reviewedBy) return null;
+  const user = await UserModel.findById(doc.reviewedBy).select('name').lean();
+  return user?.name ?? null;
+}
+
+/** GET /questionnaires/:id: the complete submission (every answer, every file, review info) in one response. */
 export async function getQuestionnaire(id: string): Promise<PublicQuestionnaire> {
-  return serializeQuestionnaire(await findQuestionnaire(id));
+  const doc = await findQuestionnaire(id);
+  return serializeQuestionnaire(doc, await reviewerName(doc));
 }
 
 /**
@@ -165,5 +175,5 @@ export async function updateQuestionnaire(
     }
   }
   await doc.save();
-  return serializeQuestionnaire(doc);
+  return serializeQuestionnaire(doc, await reviewerName(doc));
 }
